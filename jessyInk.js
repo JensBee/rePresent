@@ -183,57 +183,45 @@ function jessyInkInit()
 	}
 
 	// Making a list of the slide and finding the master slide.	
-	var nodes = document.getElementsByTagNameNS(NSS["svg"], "g");
+
+	// use only first tier nodes as slides
+	var nodes = new Array();
+	var firstTier = ROOT_NODE.childNodes;
+	for (var i = 0; i < firstTier.length; i++) {
+		var node = firstTier[i];
+		// global master is prefixed by '!' a slide by '~'
+		if (node.nodeType == 1 && node.nodeName === "g" && (node.getAttributeNS(NSS["inkscape"], "label").substring(0, 1) === "~" || node.getAttributeNS(NSS["inkscape"], "label").substring(0, 1) === "!")) {
+			nodes.push(node);
+		}
+	}
+	
 	var tempSlides = new Array();
 	var existingJessyInkPresentationLayer = null;
 
-	for (var counter = 0; counter < nodes.length; counter++)
-	{
-		if (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") && (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") == "layer"))
-		{			
-			if (nodes[counter].getAttributeNS(NSS["inkscape"], "label") && nodes[counter].getAttributeNS(NSS["jessyink"], "masterSlide") == "masterSlide") {
+	for (var counter = 0; counter < nodes.length; counter++) {
+		if (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") && (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") == "layer")) {
+			if (nodes[counter].getAttributeNS(NSS["inkscape"], "label").substring(0, 1) === "!") { // global master prefixed by '!'
 				masterSlide = nodes[counter];
-			} else if (nodes[counter].getAttributeNS(NSS["inkscape"], "label") && nodes[counter].getAttributeNS(NSS["jessyink"], "presentationLayer") == "presentationLayer")
-				existingJessyInkPresentationLayer = nodes[counter];
-			else
-				// layer has a label
-				if (nodes[counter].getAttributeNS(NSS["inkscape"], "label").substring(0, 1) == "~") {
-					tempSlides.push(nodes[counter].getAttribute("id"));
-				}
+				masterSlide.style.display = "none"; // there should be only one global master, but we hide all we'll find
+			} else {
+				tempSlides.push(nodes[counter].getAttribute("id"));
+			}
 		}
-		else if (nodes[counter].getAttributeNS(NSS['jessyink'], 'element'))
-		{
+		else if (nodes[counter].getAttributeNS(NSS['jessyink'], 'element')) {
 			handleElement(nodes[counter]);
 		}
 	}
 
-	// Hide master slide set default transitions.
-	if (masterSlide)
-	{
-		masterSlide.style.display = "none";
-
-		if (masterSlide.hasAttributeNS(NSS["jessyink"], "transitionIn"))
-			defaultTransitionInDict = propStrToDict(masterSlide.getAttributeNS(NSS["jessyink"], "transitionIn"));
-
-		if (masterSlide.hasAttributeNS(NSS["jessyink"], "transitionOut"))
-			defaultTransitionOutDict = propStrToDict(masterSlide.getAttributeNS(NSS["jessyink"], "transitionOut"));
-	}
-
-	if (existingJessyInkPresentationLayer != null)
-	{
-		existingJessyInkPresentationLayer.parentNode.removeChild(existingJessyInkPresentationLayer);
-	}
-
 	// Set start slide.
 	var hashObj = new LocationHash(window.location.hash);
-
 	activeSlide = hashObj.slideNumber;
 	activeEffect = hashObj.effectNumber;
 
-	if (activeSlide < 0)
+	if (activeSlide < 0) {
 		activeSlide = 0;
-	else if (activeSlide >= tempSlides.length)
+	} else if (activeSlide >= tempSlides.length) {
 		activeSlide = tempSlides.length - 1;
+	}
 
 	var originalNode = document.getElementById(tempSlides[counter]);
 
