@@ -1,3 +1,4 @@
+// Modified by JensBee 2013. https://github.com/JensBee/rePresent
 // Copyright 2008, 2009 Hannes Hochreiner
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU General Public License as published by
@@ -181,21 +182,38 @@ function jessyInkInit()
 		}
 	}
 
-	// Making a list of the slide and finding the master slide.
+	// Making a list of the slide and finding the master slide.	
 	var nodes = document.getElementsByTagNameNS(NSS["svg"], "g");
+	
+	/*
+	// use only first tier nodes as slides
+	var nodes = new Array();
+	var rootElement = document.documentElement;
+	var firstTier = rootElement.childNodes;
+	for (var i = 0; i < firstTier.length; i++) {
+		var node = firstTier[i];
+		if (node.nodeType == 1 && node.nodeName === "g" && node.getAttributeNS(NSS["inkscape"], "label").substring(0, 1) !== "~") { // node is an element
+			nodes.push(node);
+		}
+	}
+	*/
+	
 	var tempSlides = new Array();
 	var existingJessyInkPresentationLayer = null;
 
 	for (var counter = 0; counter < nodes.length; counter++)
 	{
 		if (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") && (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") == "layer"))
-		{
-			if (nodes[counter].getAttributeNS(NSS["inkscape"], "label") && nodes[counter].getAttributeNS(NSS["jessyink"], "masterSlide") == "masterSlide")
+		{			
+			if (nodes[counter].getAttributeNS(NSS["inkscape"], "label") && nodes[counter].getAttributeNS(NSS["jessyink"], "masterSlide") == "masterSlide") {
 				masterSlide = nodes[counter];
-			else if (nodes[counter].getAttributeNS(NSS["inkscape"], "label") && nodes[counter].getAttributeNS(NSS["jessyink"], "presentationLayer") == "presentationLayer")
+			} else if (nodes[counter].getAttributeNS(NSS["inkscape"], "label") && nodes[counter].getAttributeNS(NSS["jessyink"], "presentationLayer") == "presentationLayer")
 				existingJessyInkPresentationLayer = nodes[counter];
 			else
-				tempSlides.push(nodes[counter].getAttribute("id"));
+				// layer has a label
+				if (nodes[counter].getAttributeNS(NSS["inkscape"], "label").substring(0, 1) == "~") {
+					tempSlides.push(nodes[counter].getAttribute("id"));
+				}
 		}
 		else if (nodes[counter].getAttributeNS(NSS['jessyink'], 'element'))
 		{
