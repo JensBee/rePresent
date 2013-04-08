@@ -90,7 +90,8 @@ var mouseHandlerDictionary = getDefaultMouseHandlerDictionary();
 var progress_bar_visible = false;
 var timer_elapsed = 0;
 var timer_start = timer_elapsed;
-var timer_duration = 15; // 15 minutes
+var timer_duration = 0; // in minutes
+var timer_interval = null;
 
 var history_counter = 0;
 var history_original_elements = new Array();
@@ -107,6 +108,8 @@ var path_width = path_width_default;
 var path_paint_width = path_width;
 
 var number_of_added_slides = 0;
+
+var JessyInkPresentationLayer = document.createElementNS(NSS["svg"], "g");
 
 /** Initialisation function.
  *  The whole presentation is set-up in this function.
@@ -224,8 +227,7 @@ function jessyInkInit()
 	}
 
 	var originalNode = document.getElementById(tempSlides[counter]);
-
-	var JessyInkPresentationLayer = document.createElementNS(NSS["svg"], "g");
+	
 	JessyInkPresentationLayer.setAttributeNS(NSS["inkscape"], "groupmode", "layer");
 	JessyInkPresentationLayer.setAttributeNS(NSS["inkscape"], "label", "JessyInk Presentation Layer");
 	JessyInkPresentationLayer.setAttributeNS(NSS["jessyink"], "presentationLayer", "presentationLayer");
@@ -532,8 +534,7 @@ function jessyInkInit()
 	createProgressBar(JessyInkPresentationLayer);
 	hideProgressBar();
 	setProgressBarValue(activeSlide);
-	setTimeIndicatorValue(0);
-	setInterval("updateTimer()", 1000);
+	//setTimeIndicatorValue(0);
 	setSlideToState(activeSlide, activeEffect);
 	jessyInkInitialised = true;
 }
@@ -1180,16 +1181,24 @@ function drawingSetPathColour(colour)
 
 /** Function to query the duration of the presentation from the user in slide mode.
 */
-function slideQueryDuration()
-{
+function slideQueryDuration() {
 	var new_duration = prompt("Length of presentation in minutes?", timer_duration);
 
-	if ((new_duration != null) && (new_duration != ''))
-	{
+	if ((new_duration != null) && (new_duration != '')) {
 		timer_duration = new_duration;
 	}
-
-	updateTimer();
+	
+	if (timer_duration > 0) {
+		if (timer_interval !== null) {
+			clearInterval(timer_interval);
+		}
+		document.getElementById("circle_timer_indicator").style.display = "inherit";
+		timer_interval = setInterval("updateTimer()", 1000);
+		createProgressBar(JessyInkPresentationLayer);		
+		updateTimer();
+	} else  {
+		document.getElementById("circle_timer_indicator").style.display = "none";
+	}
 }
 
 /** Function to toggle the visibility of the progress bar in slide mode.
@@ -1990,8 +1999,7 @@ function suffixNodeIds(node, suffix)
  *	
  *  @param parent node to attach the progress bar to
  */
-function createProgressBar(parent_node)
-{
+function createProgressBar(parent_node) {
 	var g = document.createElementNS(NSS["svg"], "g");
 	g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
 	g.setAttribute("id", "layer_progress_bar");
@@ -2007,13 +2015,13 @@ function createProgressBar(parent_node)
 	g.appendChild(rect_progress_bar);
 
 	var circle_timer_indicator = document.createElementNS(NSS["svg"], "circle");
-	circle_timer_indicator.setAttribute("style", "marker: none; fill: rgb(255, 0, 0); stroke: none;");
+	circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
 	circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
 	circle_timer_indicator.setAttribute("cx", 0.005 * HEIGHT);
 	circle_timer_indicator.setAttribute("cy", 0.995 * HEIGHT);
 	circle_timer_indicator.setAttribute("r", 0.005 * HEIGHT);
 	g.appendChild(circle_timer_indicator);
-
+	
 	parent_node.appendChild(g);
 }
 
@@ -2091,22 +2099,16 @@ function setProgressBarValue(value)
  *	@param value the percentage of time elapse so far between 0.0 and 1.0
  *
  */
-function setTimeIndicatorValue(value)
-{
+function setTimeIndicatorValue(value) {
 	var circle_timer_indicator = document.getElementById("circle_timer_indicator");
 
-	if (!circle_timer_indicator)
-	{
+	if (!circle_timer_indicator) {
 		return;
 	}
 
-	if (value < 0.0)
-	{
+	if (value < 0.0) {
 		value = 0.0;
-	}
-
-	if (value > 1.0)
-	{
+	} else if (value > 1.0) {
 		value = 1.0;
 	}
 
@@ -2117,8 +2119,7 @@ function setTimeIndicatorValue(value)
 /** Update timer.
  *	
  */
-function updateTimer()
-{
+function updateTimer() {
 	timer_elapsed += 1;
 	setTimeIndicatorValue((timer_elapsed - timer_start) / (60 * timer_duration));
 }
@@ -2129,8 +2130,7 @@ function updateTimer()
  *
  *  @return coordinates in SVG file coordinate system	
  */
-function calcCoord(e)
-{
+function calcCoord(e) {
 	var svgPoint = document.documentElement.createSVGPoint();
 	svgPoint.x = e.clientX + window.pageXOffset;
 	svgPoint.y = e.clientY + window.pageYOffset;
