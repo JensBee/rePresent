@@ -53,7 +53,6 @@ var MOUSE_MOVE = 3;
 var MOUSE_WHEEL = 4;
 
 // Parameters.
-var ROOT_NODE = document.getElementsByTagNameNS(NSS["svg"], "svg")[0];
 var HEIGHT = 0;
 var WIDTH = 0;
 var INDEX_COLUMNS_DEFAULT = 4;
@@ -107,9 +106,136 @@ var path_width_default = 3;
 var path_width = path_width_default;
 var path_paint_width = path_width;
 
-var number_of_added_slides = 0;
+// Main class
+var Represent = function () {
+	var self = this;
+	return self;
+};
 
-var JessyInkPresentationLayer = document.createElementNS(NSS["svg"], "g");
+/****************************************
+** DOM functions
+****************************************/
+var Represent_Dom = function() {
+	var self = this;
+	
+	self._DOM = {
+		// document root
+		'root' : document.getElementsByTagNameNS(NSS['svg'], "svg")[0],
+		// presentation layer
+		'presentationLayer' : document.createElementNS(NSS['svg'], "g")
+	};
+	
+	/** Find slide layers nested inside a given parent. Slide nodes are labeled with a leading tilde (~).
+	* @param parent node
+	* @return array of nodes or an empty array if none found
+	*/
+	self.getSlides = function(node) {
+		var parentNode = nodeOrRoot(node);
+		var nodes = new Array();
+		var firstTier = parentNode.childNodes;
+		for (var i = 0; i < firstTier.length; i++) {
+			var node = firstTier[i];			
+			if (node.nodeType == 1 && node.nodeName === "g"
+				&& node.getAttributeNS(NSS['inkscape'], "label").substring(0, 1) === "~") {
+				nodes.push(node);
+			}
+		}
+		return nodes;
+	}
+	
+	/** Find the master slide. The master layer is labeled '{master}'.
+	* @param parent node
+	* @return master slide node or null if none found
+	*/
+	self.getMaster = function(node) {
+		var parentNode = nodeOrRoot(node);
+		var firstTier = parentNode.childNodes;
+		for (var i = 0; i < firstTier.length; i++) {
+			var node = firstTier[i];
+			if (node.nodeType == 1 && node.nodeName === "g"
+				&& node.getAttributeNS(NSS['inkscape'], "label").toLowerCase() === "{master}") {
+				return node;
+			}
+		}
+		return null;
+	}
+	
+	self.getPresentationLayer = function() {
+		return this._DOM['presentationLayer'];
+	};
+	
+	self.getRoot = function() {
+		return this._DOM['root'];
+	};
+	
+	function nodeOrRoot(node) {
+		if (node === undefined || node === null) {
+			return self._DOM['root'];
+		}
+		return node;
+	}
+	
+	function setupPresentationLayer() {
+		var layer = self.getPresentationLayer();
+		layer.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
+		layer.setAttributeNS(NSS['inkscape'], "label", "JessyInk Presentation Layer");
+		layer.setAttributeNS(NSS['jessyink'], "presentationLayer", "presentationLayer");
+		layer.setAttribute("id", "jessyink_presentation_layer");
+		layer.style.display = "inherit";
+		self.getRoot().appendChild(layer);
+	};
+	
+	setupPresentationLayer();
+	return self;
+};
+
+/****************************************
+** UI functions
+****************************************/
+var Represent_Ui = function() {
+	var self = this;
+	
+	/** Function to build a progress bar.
+	*	
+	*  @param parent node to attach the progress bar to
+	*/
+	self.createProgressBar = function(parentNode) {
+		var g = document.createElementNS(NSS['svg'], "g");
+		g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
+		g.setAttribute("id", "layer_progress_bar");
+		g.setAttribute("style", "display: none;");
+
+		var rect_progress_bar = document.createElementNS(NSS['svg'], "rect");
+		rect_progress_bar.setAttribute("style", "marker: none; fill: rgb(128, 128, 128); stroke: none;");
+		rect_progress_bar.setAttribute("id", "rect_progress_bar");
+		rect_progress_bar.setAttribute("x", 0);
+		rect_progress_bar.setAttribute("y", 0.99 * HEIGHT);
+		rect_progress_bar.setAttribute("width", 0);
+		rect_progress_bar.setAttribute("height", 0.01 * HEIGHT);
+		g.appendChild(rect_progress_bar);
+
+		var circle_timer_indicator = document.createElementNS(NSS['svg'], "circle");
+		circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
+		circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
+		circle_timer_indicator.setAttribute("cx", 0.005 * HEIGHT);
+		circle_timer_indicator.setAttribute("cy", 0.995 * HEIGHT);
+		circle_timer_indicator.setAttribute("r", 0.005 * HEIGHT);
+		g.appendChild(circle_timer_indicator);
+		
+		parentNode.appendChild(g);
+	}
+		
+	return self;
+}
+
+Represent.prototype.dom = new Represent_Dom();
+Represent.prototype.ui = new Represent_Ui();
+Represent.prototype.initialize = function() {
+	alert("initialize");
+	this.ui.createProgressBar(this.dom.getPresentationLayer());
+};
+var rps = new Represent();
+rps.initialize();
 
 /** Initialisation function.
  *  The whole presentation is set-up in this function.
@@ -123,25 +249,25 @@ function jessyInkInit()
 		return;
 
 	// Making the presentation scaleable.
-	var VIEWBOX = ROOT_NODE.getAttribute("viewBox");
+	var VIEWBOX = rps.dom.getRoot().getAttribute("viewBox");
 
 	if (VIEWBOX)
 	{
-		WIDTH = ROOT_NODE.viewBox.animVal.width;
-		HEIGHT = ROOT_NODE.viewBox.animVal.height;
+		WIDTH = rps.dom.getRoot().viewBox.animVal.width;
+		HEIGHT = rps.dom.getRoot().viewBox.animVal.height;
 	}
 	else
 	{
-		HEIGHT = parseFloat(ROOT_NODE.getAttribute("height"));
-		WIDTH = parseFloat(ROOT_NODE.getAttribute("width"));
-		ROOT_NODE.setAttribute("viewBox", "0 0 " + WIDTH + " " + HEIGHT);
+		HEIGHT = parseFloat(rps.dom.getRoot().getAttribute("height"));
+		WIDTH = parseFloat(rps.dom.getRoot().getAttribute("width"));
+		rps.dom.getRoot().setAttribute("viewBox", "0 0 " + WIDTH + " " + HEIGHT);
 	}
 
-	ROOT_NODE.setAttribute("width", "100%");
-	ROOT_NODE.setAttribute("height", "100%");
+	rps.dom.getRoot().setAttribute("width", "100%");
+	rps.dom.getRoot().setAttribute("height", "100%");
 
 	// Setting the background color.
-	var namedViews = document.getElementsByTagNameNS(NSS["sodipodi"], "namedview");
+	var namedViews = document.getElementsByTagNameNS(NSS['sodipodi'], "namedview");
 
 	for (var counter = 0; counter < namedViews.length; counter++)
 	{
@@ -152,16 +278,16 @@ function jessyInkInit()
 				BACKGROUND_COLOR = namedViews[counter].getAttribute("pagecolor");
 				var newAttribute = "background-color:" + BACKGROUND_COLOR + ";";
 
-				if (ROOT_NODE.hasAttribute("style"))
-					newAttribute += ROOT_NODE.getAttribute("style");
+				if (rps.dom.getRoot().hasAttribute("style"))
+					newAttribute += rps.dom.getRoot().getAttribute("style");
 
-				ROOT_NODE.setAttribute("style", newAttribute);
+				rps.dom.getRoot().setAttribute("style", newAttribute);
 			}
 		}
 	}
 
 	// Defining clip-path.
-	var defsNodes = document.getElementsByTagNameNS(NSS["svg"], "defs");
+	var defsNodes = document.getElementsByTagNameNS(NSS['svg'], "defs");
 
 	if (defsNodes.length > 0)
 	{
@@ -169,8 +295,8 @@ function jessyInkInit()
 
 		if (!existingClipPath)
 		{
-			var rectNode = document.createElementNS(NSS["svg"], "rect");
-			var clipPath = document.createElementNS(NSS["svg"], "clipPath");
+			var rectNode = document.createElementNS(NSS['svg'], "rect");
+			var clipPath = document.createElementNS(NSS['svg'], "clipPath");
 
 			rectNode.setAttribute("x", 0);
 			rectNode.setAttribute("y", 0);
@@ -186,24 +312,15 @@ function jessyInkInit()
 	}
 
 	// Making a list of the slide and finding the master slide.	
-
-	// use only first tier nodes as slides
-	var nodes = new Array();
-	var firstTier = ROOT_NODE.childNodes;
-	for (var i = 0; i < firstTier.length; i++) {
-		var node = firstTier[i];
-		// global master is prefixed by '!' a slide by '~'
-		if (node.nodeType == 1 && node.nodeName === "g" && (node.getAttributeNS(NSS["inkscape"], "label").substring(0, 1) === "~" || node.getAttributeNS(NSS["inkscape"], "label").substring(0, 1) === "!")) {
-			nodes.push(node);
-		}
-	}
+	nodes = rps.dom.getSlides();
+	masterSlide = rps.dom.getMaster();
 	
 	var tempSlides = new Array();
 	var existingJessyInkPresentationLayer = null;
 
 	for (var counter = 0; counter < nodes.length; counter++) {
-		if (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") && (nodes[counter].getAttributeNS(NSS["inkscape"], "groupmode") == "layer")) {
-			if (nodes[counter].getAttributeNS(NSS["inkscape"], "label").substring(0, 1) === "!") { // global master prefixed by '!'
+		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {
+			if (nodes[counter].getAttributeNS(NSS['inkscape'], "label").substring(0, 1) === "!") { // global master prefixed by '!'
 				masterSlide = nodes[counter];
 				masterSlide.style.display = "none"; // there should be only one global master, but we hide all we'll find
 			} else {
@@ -228,13 +345,6 @@ function jessyInkInit()
 
 	var originalNode = document.getElementById(tempSlides[counter]);
 	
-	JessyInkPresentationLayer.setAttributeNS(NSS["inkscape"], "groupmode", "layer");
-	JessyInkPresentationLayer.setAttributeNS(NSS["inkscape"], "label", "JessyInk Presentation Layer");
-	JessyInkPresentationLayer.setAttributeNS(NSS["jessyink"], "presentationLayer", "presentationLayer");
-	JessyInkPresentationLayer.setAttribute("id", "jessyink_presentation_layer");
-	JessyInkPresentationLayer.style.display = "inherit";
-	ROOT_NODE.appendChild(JessyInkPresentationLayer);
-
 	// Gathering all the information about the transitions and effects of the slides, set the background
 	// from the master slide and substitute the auto-texts.
 	for (var counter = 0; counter < tempSlides.length; counter++)
@@ -242,7 +352,7 @@ function jessyInkInit()
 		var originalNode = document.getElementById(tempSlides[counter]);
 		originalNode.style.display = "none";
 		var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
-		JessyInkPresentationLayer.appendChild(node);
+		rps.dom.getPresentationLayer().appendChild(node);
 		slides[counter] = new Object();
 		slides[counter]["original_element"] = originalNode;
 		slides[counter]["element"] = node;
@@ -275,8 +385,8 @@ function jessyInkInit()
 		if (masterSlide)
 		{
 			var clonedNode = suffixNodeIds(masterSlide.cloneNode(true), "_" + counter);
-			clonedNode.removeAttributeNS(NSS["inkscape"], "groupmode");
-			clonedNode.removeAttributeNS(NSS["inkscape"], "label");
+			clonedNode.removeAttributeNS(NSS['inkscape'], "groupmode");
+			clonedNode.removeAttributeNS(NSS['inkscape'], "label");
 			clonedNode.style.display = "inherit";
 
 			node.insertBefore(clonedNode, node.firstChild);
@@ -285,8 +395,8 @@ function jessyInkInit()
 		// Setting clip path.
 		node.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
 
-		node.removeAttributeNS(NSS["inkscape"], "groupmode");
-		node.removeAttributeNS(NSS["inkscape"], "label");
+		node.removeAttributeNS(NSS['inkscape'], "groupmode");
+		node.removeAttributeNS(NSS['inkscape'], "label");
 
 		// Set effects.
 		var tempEffects = new Array();
@@ -308,18 +418,18 @@ function jessyInkInit()
 				dir = -1;
 			}
 
-			var effects = getElementsByPropertyNS(node, NSS["jessyink"], propName);
+			var effects = getElementsByPropertyNS(node, NSS['jessyink'], propName);
 
 			for (var effectCounter = 0; effectCounter < effects.length; effectCounter++)
 			{
 				var element = document.getElementById(effects[effectCounter]);
-				var dict = propStrToDict(element.getAttributeNS(NSS["jessyink"], propName));
+				var dict = propStrToDict(element.getAttributeNS(NSS['jessyink'], propName));
 
 				// Put every element that has an effect associated with it, into its own group.
 				// Unless of course, we already put it into its own group.
 				if (!(groups[element.id]))
 				{
-					var newGroup = document.createElementNS(NSS["svg"], "g");
+					var newGroup = document.createElementNS(NSS['svg'], "g");
 
 					element.parentNode.insertBefore(newGroup, element);
 					newGroup.appendChild(element.parentNode.removeChild(element));
@@ -355,7 +465,7 @@ function jessyInkInit()
 		node.style.display = "inherit";
 
 		// Create a transform group.
-		var transformGroup = document.createElementNS(NSS["svg"], "g");
+		var transformGroup = document.createElementNS(NSS['svg'], "g");
 
 		// Add content to transform group.
 		while (node.firstChild)
@@ -369,7 +479,7 @@ function jessyInkInit()
 		}
 
 		// Create a view group.
-		var viewGroup = document.createElementNS(NSS["svg"], "g");
+		var viewGroup = document.createElementNS(NSS['svg'], "g");
 
 		viewGroup.appendChild(transformGroup);
 		slides[counter]["viewGroup"] = node.appendChild(viewGroup);
@@ -377,7 +487,7 @@ function jessyInkInit()
 		// Insert background.
 		if (BACKGROUND_COLOR != null)
 		{
-			var rectNode = document.createElementNS(NSS["svg"], "rect");
+			var rectNode = document.createElementNS(NSS['svg'], "rect");
 
 			rectNode.setAttribute("x", 0);
 			rectNode.setAttribute("y", 0);
@@ -391,7 +501,7 @@ function jessyInkInit()
 
 		// Set views.
 		var tempViews = new Array();
-		var views = getElementsByPropertyNS(node, NSS["jessyink"], "view");
+		var views = getElementsByPropertyNS(node, NSS['jessyink'], "view");
 		var matrixOld = (new matrixSVG()).fromElements(1, 0, 0, 0, 1, 0, 0, 0, 1);
 
 		// Set initial view even if there are no other views.
@@ -401,7 +511,7 @@ function jessyInkInit()
 		for (var viewCounter = 0; viewCounter < views.length; viewCounter++)
 		{
 			var element = document.getElementById(views[viewCounter]);
-			var dict = propStrToDict(element.getAttributeNS(NSS["jessyink"], "view"));
+			var dict = propStrToDict(element.getAttributeNS(NSS['jessyink'], "view"));
 
 			if (dict["order"] == 0)
 			{
@@ -483,13 +593,13 @@ function jessyInkInit()
 	}
 
 	// Set key handler.
-	var jessyInkObjects = document.getElementsByTagNameNS(NSS["svg"], "g");
+	var jessyInkObjects = document.getElementsByTagNameNS(NSS['svg'], "g");
 
 	for (var counter = 0; counter < jessyInkObjects.length; counter++)
 	{
 		var elem = jessyInkObjects[counter];
 
-		if (elem.getAttributeNS(NSS["jessyink"], "customKeyBindings"))
+		if (elem.getAttributeNS(NSS['jessyink'], "customKeyBindings"))
 		{
 			if (elem.getCustomKeyBindings != undefined)
 				keyCodeDictionary = elem.getCustomKeyBindings();
@@ -500,7 +610,7 @@ function jessyInkInit()
 	}
 
 	// Set mouse handler.
-	var jessyInkMouseHandler = document.getElementsByTagNameNS(NSS["jessyink"], "mousehandler");
+	var jessyInkMouseHandler = document.getElementsByTagNameNS(NSS['jessyink'], "mousehandler");
 
 	for (var counter = 0; counter < jessyInkMouseHandler.length; counter++)
 	{
@@ -531,7 +641,7 @@ function jessyInkInit()
 		activeEffect = slides[activeSlide].effects.length;
 	}
 
-	createProgressBar(JessyInkPresentationLayer);
+	
 	hideProgressBar();
 	setProgressBarValue(activeSlide);
 	//setTimeIndicatorValue(0);
@@ -686,7 +796,7 @@ function changeSlide(dir)
 */
 function toggleSlideIndex()
 {
-	var suspendHandle = ROOT_NODE.suspendRedraw(500);
+	var suspendHandle = rps.dom.getRoot().suspendRedraw(500);
 
 	if (currentMode == SLIDE_MODE)
 	{
@@ -723,8 +833,8 @@ function toggleSlideIndex()
 		}
 	}
 
-	ROOT_NODE.unsuspendRedraw(suspendHandle);
-	ROOT_NODE.forceRedraw();
+	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
+	rps.dom.getRoot().forceRedraw();
 }
 
 /** Function to run an effect.
@@ -735,7 +845,7 @@ function effect(dir)
 {
 	var done = true;
 
-	var suspendHandle = ROOT_NODE.suspendRedraw(200);
+	var suspendHandle = rps.dom.getRoot().suspendRedraw(200);
 
 	for (var counter = 0; counter < effectArray.length; counter++)
 	{
@@ -749,8 +859,8 @@ function effect(dir)
 			done &= view(parseInt(effectArray[counter]["dir"]) * dir, effectArray[counter]["element"], transCounter, effectArray[counter]["options"]);
 	}
 
-	ROOT_NODE.unsuspendRedraw(suspendHandle);
-	ROOT_NODE.forceRedraw();
+	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
+	rps.dom.getRoot().forceRedraw();
 
 	if (!done)
 	{
@@ -1090,13 +1200,13 @@ function slideSwitchToDrawingMode()
 
 	var tempDict;
 
-	if (ROOT_NODE.hasAttribute("style"))
-		tempDict = propStrToDict(ROOT_NODE.getAttribute("style"));
+	if (rps.dom.getRoot().hasAttribute("style"))
+		tempDict = propStrToDict(rps.dom.getRoot().getAttribute("style"));
 	else
 		tempDict = new Object();
 
 	tempDict["cursor"] = "crosshair";
-	ROOT_NODE.setAttribute("style", dictToPropStr(tempDict));
+	rps.dom.getRoot().setAttribute("style", dictToPropStr(tempDict));
 }
 
 /** Function to switch from drawing mode to slide mode.
@@ -1107,13 +1217,13 @@ function drawingSwitchToSlideMode()
 
 	var tempDict;
 
-	if (ROOT_NODE.hasAttribute("style"))
-		tempDict = propStrToDict(ROOT_NODE.getAttribute("style"));
+	if (rps.dom.getRoot().hasAttribute("style"))
+		tempDict = propStrToDict(rps.dom.getRoot().getAttribute("style"));
 	else
 		tempDict = new Object();
 
 	tempDict["cursor"] = "auto";
-	ROOT_NODE.setAttribute("style", dictToPropStr(tempDict));
+	rps.dom.getRoot().setAttribute("style", dictToPropStr(tempDict));
 }
 
 /** Function to decrease the number of columns in index mode.
@@ -1194,7 +1304,7 @@ function slideQueryDuration() {
 		}
 		document.getElementById("circle_timer_indicator").style.display = "inherit";
 		timer_interval = setInterval("updateTimer()", 1000);
-		createProgressBar(JessyInkPresentationLayer);		
+		createProgressBar(rps.dom.getPresentationLayer());		
 		updateTimer();
 	} else  {
 		document.getElementById("circle_timer_indicator").style.display = "none";
@@ -1244,7 +1354,7 @@ function padString(str, len)
 function slideUpdateExportLayer()
 {
 	// Suspend redraw since we are going to mess with the slides.
-	var suspendHandle = ROOT_NODE.suspendRedraw(2000);
+	var suspendHandle = rps.dom.getRoot().suspendRedraw(2000);
 
 	var tmpActiveSlide = activeSlide;
 	var tmpActiveEffect = activeEffect;
@@ -1264,8 +1374,8 @@ function slideUpdateExportLayer()
 		}
 
 		exportNode = slides[counterSlides].element.cloneNode(true);
-		exportNode.setAttributeNS(NSS["inkscape"], "groupmode", "layer");
-		exportNode.setAttributeNS(NSS["inkscape"], "label", "slide_" + padString((counterSlides + 1).toString(), slides.length.toString().length) + "_effect_" + padString("0", maxEffect.toString().length));
+		exportNode.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
+		exportNode.setAttributeNS(NSS['inkscape'], "label", "slide_" + padString((counterSlides + 1).toString(), slides.length.toString().length) + "_effect_" + padString("0", maxEffect.toString().length));
 
 		exportedLayers.push(exportNode);
 
@@ -1288,8 +1398,8 @@ function slideUpdateExportLayer()
 
 				var layerName = "slide_" + padString((counterSlides + 1).toString(), slides.length.toString().length) + "_effect_" + padString((counter + 1).toString(), maxEffect.toString().length);
 				exportNode = slides[counterSlides].element.cloneNode(true);
-				exportNode.setAttributeNS(NSS["inkscape"], "groupmode", "layer");
-				exportNode.setAttributeNS(NSS["inkscape"], "label", layerName);
+				exportNode.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
+				exportNode.setAttributeNS(NSS['inkscape'], "label", layerName);
 				exportNode.setAttribute("id", layerName);
 
 				exportedLayers.push(exportNode);
@@ -1330,7 +1440,7 @@ function slideUpdateExportLayer()
 		var nd = nodesToBeRemoved[ndCounter];
 
 		// Before removing the node, check whether it contains any definitions.
-		var defs = nd.getElementsByTagNameNS(NSS["svg"], "defs");
+		var defs = nd.getElementsByTagNameNS(NSS['svg'], "defs");
 
 		for (var defsCounter = 0; defsCounter < defs.length; defsCounter++)
 		{
@@ -1389,8 +1499,8 @@ function slideUpdateExportLayer()
 	window.location = 'data:application/svg+xml;base64;charset=utf-8,' + window.btoa(strm.content);
 
 	// Unsuspend redraw.
-	ROOT_NODE.unsuspendRedraw(suspendHandle);
-	ROOT_NODE.forceRedraw();
+	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
+	rps.dom.getRoot().forceRedraw();
 }
 
 /** Function to undo last drawing operation.
@@ -1431,7 +1541,7 @@ function drawingMousedown(e)
 
 		mouse_last_x = e.clientX;
 		mouse_last_y = e.clientY;
-		mouse_original_path = document.createElementNS(NSS["svg"], "path");
+		mouse_original_path = document.createElementNS(NSS['svg'], "path");
 		mouse_original_path.setAttribute("stroke", path_colour);
 		mouse_original_path.setAttribute("stroke-width", path_paint_width);
 		mouse_original_path.setAttribute("fill", "none");
@@ -1440,7 +1550,7 @@ function drawingMousedown(e)
 		slides[activeSlide]["original_element"].appendChild(mouse_original_path);
 		history_original_elements.push(mouse_original_path);
 
-		mouse_presentation_path = document.createElementNS(NSS["svg"], "path");
+		mouse_presentation_path = document.createElementNS(NSS['svg'], "path");
 		mouse_presentation_path.setAttribute("stroke", path_colour);
 		mouse_presentation_path.setAttribute("stroke-width", path_paint_width);
 		mouse_presentation_path.setAttribute("fill", "none");
@@ -1591,10 +1701,10 @@ function set_path_paint_width()
 	svgPoint2.x = 1.0;
 	svgPoint2.y = 0.0;
 
-	var matrix = slides[activeSlide]["element"].getTransformToElement(ROOT_NODE);
+	var matrix = slides[activeSlide]["element"].getTransformToElement(rps.dom.getRoot());
 
 	if (slides[activeSlide]["viewGroup"])
-		matrix = slides[activeSlide]["viewGroup"].getTransformToElement(ROOT_NODE);
+		matrix = slides[activeSlide]["viewGroup"].getTransformToElement(rps.dom.getRoot());
 
 	svgPoint1 = svgPoint1.matrixTransform(matrix);
 	svgPoint2 = svgPoint2.matrixTransform(matrix);
@@ -1968,8 +2078,8 @@ function suffixNoneIds_sub(node, suffix, replace)
 			node.setAttribute("id", id + suffix);
 		}
 
-		if ((node.nodeName == "use") && (node.getAttributeNS(NSS["xlink"], "href")) && (replace[node.getAttribute(NSS["xlink"], "href")]))
-			node.setAttribute(NSS["xlink"], "href", node.getAttribute(NSS["xlink"], "href") + suffix);
+		if ((node.nodeName == "use") && (node.getAttributeNS(NSS['xlink'], "href")) && (replace[node.getAttribute(NSS['xlink'], "href")]))
+			node.setAttribute(NSS['xlink'], "href", node.getAttribute(NSS['xlink'], "href") + suffix);
 
 		if (node.childNodes)
 		{
@@ -1993,36 +2103,6 @@ function suffixNodeIds(node, suffix)
 	suffixNoneIds_sub(node, suffix, replace);
 
 	return node;
-}
-
-/** Function to build a progress bar.
- *	
- *  @param parent node to attach the progress bar to
- */
-function createProgressBar(parent_node) {
-	var g = document.createElementNS(NSS["svg"], "g");
-	g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
-	g.setAttribute("id", "layer_progress_bar");
-	g.setAttribute("style", "display: none;");
-
-	var rect_progress_bar = document.createElementNS(NSS["svg"], "rect");
-	rect_progress_bar.setAttribute("style", "marker: none; fill: rgb(128, 128, 128); stroke: none;");
-	rect_progress_bar.setAttribute("id", "rect_progress_bar");
-	rect_progress_bar.setAttribute("x", 0);
-	rect_progress_bar.setAttribute("y", 0.99 * HEIGHT);
-	rect_progress_bar.setAttribute("width", 0);
-	rect_progress_bar.setAttribute("height", 0.01 * HEIGHT);
-	g.appendChild(rect_progress_bar);
-
-	var circle_timer_indicator = document.createElementNS(NSS["svg"], "circle");
-	circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
-	circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
-	circle_timer_indicator.setAttribute("cx", 0.005 * HEIGHT);
-	circle_timer_indicator.setAttribute("cy", 0.995 * HEIGHT);
-	circle_timer_indicator.setAttribute("r", 0.005 * HEIGHT);
-	g.appendChild(circle_timer_indicator);
-	
-	parent_node.appendChild(g);
 }
 
 /** Function to hide the progress bar.
