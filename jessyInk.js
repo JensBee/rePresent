@@ -104,175 +104,200 @@ var path_width = path_width_default;
 var path_paint_width = path_width;
 
 // Main class
-var Represent = function () {
-	var represent = this;
-	return represent;
-};
-
-/****************************************
-** DOM functions
-****************************************/
-var Represent_Dom = function() {
-	var self = this;
-	self.node = {
-		// document root
-		'root' : document.getElementsByTagNameNS(NSS['svg'], "svg")[0],
-		// presentation layer
-		'presentationLayer' : document.createElementNS(NSS['svg'], "g")
-	};
-	self.backgroundColor = '#fff';
-	
-	/** Find slide layers nested inside a given parent. Slide nodes are labeled with a leading tilde (~).
-	* @param parent node
-	* @return array of nodes or an empty array if none found
-	*/
-	self.getSlides = function(node) {
-		var parentNode = nodeOrRoot(node);
-		var nodes = new Array();
-		var firstTier = parentNode.childNodes;
-		for (var i = 0; i < firstTier.length; i++) {
-			var node = firstTier[i];			
-			if (node.nodeType == 1 && node.nodeName === "g"
-				&& node.getAttributeNS(NSS['inkscape'], "label").substring(0, 1) === "~") {
-				nodes.push(node);
-			}
-		}
-		return nodes;
-	}
-	
-	/** Find the master slide. The master layer is labeled '{master}'.
-	* @param parent node
-	* @return master slide node or null if none found
-	*/
-	self.getMaster = function(node) {
-		var parentNode = nodeOrRoot(node);
-		var firstTier = parentNode.childNodes;
-		for (var i = 0; i < firstTier.length; i++) {
-			var node = firstTier[i];
-			if (node.nodeType == 1 && node.nodeName === "g"
-				&& node.getAttributeNS(NSS['inkscape'], "label").toLowerCase() === "{master}") {
-				return node;
-			}
-		}
-		return null;
-	}
-	
-	self.getPresentationLayer = function() {
-		return this.node.presentationLayer;
-	};
-	
-	self.getRoot = function() {
-		return this.node.root;
-	};
-	
-	function nodeOrRoot(node) {
-		if (node === undefined || node === null) {
-			return self.node.root;
-		}
-		return node;
-	}
-	
-	/** Create a layer used for displaying slides. */
-	function setupPresentationLayer() {
-		var layer = self.getPresentationLayer();
-		layer.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
-		layer.setAttributeNS(NSS['inkscape'], "label", "JessyInk Presentation Layer");
-		layer.setAttributeNS(NSS['jessyink'], "presentationLayer", "presentationLayer");
-		layer.setAttribute("id", "jessyink_presentation_layer");
-		layer.style.display = "inherit";
-		self.getRoot().appendChild(layer);
-	};
-	
-	/** Sets the background color according to the inkscape setting. */
-	function setBackgroundColor() {
-		var namedViews = document.getElementsByTagNameNS(NSS['sodipodi'], "namedview");
-		for (var counter = 0; counter < namedViews.length; counter++) {
-			if (namedViews[counter].hasAttribute("id") && namedViews[counter].hasAttribute("pagecolor")) {
-				if (namedViews[counter].getAttribute("id") == "base") {
-					self.backgroundColor = namedViews[counter].getAttribute("pagecolor")
-					self.getRoot().style.backgroundColor = self.backgroundColor;
-					break;
+var Represent = function() {
+	/****************************************
+	** DOM functions
+	****************************************/
+	this.dom = (function() {
+		var self = {};
+			
+		self.node = {
+			// document root
+			'root' : document.getElementsByTagNameNS(NSS['svg'], "svg")[0],
+			// presentation layer
+			'presentationLayer' : document.createElementNS(NSS['svg'], "g")
+		};
+		self.backgroundColor = '#fff';
+		
+		/** Find slide layers nested inside a given parent. Slide nodes are labeled with a leading tilde (~).
+		* @param parent node
+		* @return array of nodes or an empty array if none found
+		*/
+		self.getSlides = function(node) {
+			var parentNode = nodeOrRoot(node);
+			var nodes = new Array();
+			var firstTier = parentNode.childNodes;
+			for (var i = 0; i < firstTier.length; i++) {
+				var node = firstTier[i];			
+				if (node.nodeType == 1 && node.nodeName === "g"
+					&& node.getAttributeNS(NSS['inkscape'], "label").substring(0, 1) === "~") {
+					nodes.push(node);
 				}
 			}
+			return nodes;
 		}
-	};
-	
-	setBackgroundColor();
-	setupPresentationLayer();
-	return self;
-};
-
-/****************************************
-** UI functions
-****************************************/
-var Represent_Ui = function() {
-	var self = this;
-	self.width = undefined;
-	self.height = undefined;
-	
-	/** Function to build a progress bar.
-	*	
-	*  @param parent node to attach the progress bar to
-	*/
-	self.createProgressBar = function(parentNode) {
-		var g = document.createElementNS(NSS['svg'], "g");
-		g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
-		g.setAttribute("id", "layer_progress_bar");
-		g.setAttribute("style", "display: none;");
-
-		var rect_progress_bar = document.createElementNS(NSS['svg'], "rect");
-		rect_progress_bar.setAttribute("style", "marker: none; fill: rgb(128, 128, 128); stroke: none;");
-		rect_progress_bar.setAttribute("id", "rect_progress_bar");
-		rect_progress_bar.setAttribute("x", 0);
-		rect_progress_bar.setAttribute("y", 0.99 * rps.ui.height);
-		rect_progress_bar.setAttribute("width", 0);
-		rect_progress_bar.setAttribute("height", 0.01 * rps.ui.height);
-		g.appendChild(rect_progress_bar);
-
-		var circle_timer_indicator = document.createElementNS(NSS['svg'], "circle");
-		circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
-		circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
-		circle_timer_indicator.setAttribute("cx", 0.005 * rps.ui.height);
-		circle_timer_indicator.setAttribute("cy", 0.995 * rps.ui.height);
-		circle_timer_indicator.setAttribute("r", 0.005 * rps.ui.height);
-		g.appendChild(circle_timer_indicator);
 		
-		parentNode.appendChild(g);
+		/** Find the master slide. The master layer is labeled '{master}'.
+		* @param parent node
+		* @return master slide node or null if none found
+		*/
+		self.getMaster = function(node) {
+			var parentNode = nodeOrRoot(node);
+			var firstTier = parentNode.childNodes;
+			for (var i = 0; i < firstTier.length; i++) {
+				var node = firstTier[i];
+				if (node.nodeType == 1 && node.nodeName === "g"
+					&& node.getAttributeNS(NSS['inkscape'], "label").toLowerCase() === "{master}") {
+					return node;
+				}
+			}
+			return null;
+		}
+		
+		self.getPresentationLayer = function() {
+			return self.node.presentationLayer;
+		};
+		
+		self.getRoot = function() {
+			return self.node.root;
+		};
+		
+		/** Create a clip path for slides.
+		* @param width of the presentation
+		* @param height of the presentation
+		*/
+		self.createClipPath = function(width, height) {			
+			var defsNodes = document.getElementsByTagNameNS(NSS['svg'], "defs");
+			if (defsNodes.length > 0) {
+				var existingClipPath = document.getElementById("jessyInkSlideClipPath");
+				if (!existingClipPath) {
+					var rectNode = document.createElementNS(NSS['svg'], "rect");
+					var clipPath = document.createElementNS(NSS['svg'], "clipPath");
+
+					rectNode.setAttribute("x", 0);
+					rectNode.setAttribute("y", 0);
+					rectNode.setAttribute("width", width);
+					rectNode.setAttribute("height", height);
+
+					clipPath.setAttribute("id", "jessyInkSlideClipPath");
+					clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
+
+					clipPath.appendChild(rectNode);
+					defsNodes[0].appendChild(clipPath);
+				}
+			}
+		};
+		
+		function nodeOrRoot(node) {
+			if (node === undefined || node === null) {
+				return self.node.root;
+			}
+			return node;
+		}
+		
+		/** Create a layer used for displaying slides. */
+		function setupPresentationLayer() {
+			var layer = self.getPresentationLayer();
+			layer.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
+			layer.setAttributeNS(NSS['inkscape'], "label", "JessyInk Presentation Layer");
+			layer.setAttributeNS(NSS['jessyink'], "presentationLayer", "presentationLayer");
+			layer.setAttribute("id", "jessyink_presentation_layer");
+			layer.style.display = "inherit";
+			self.getRoot().appendChild(layer);
+		};
+		
+		/** Sets the background color according to the inkscape setting. */
+		function setBackgroundColor() {
+			var namedViews = document.getElementsByTagNameNS(NSS['sodipodi'], "namedview");
+			for (var counter = 0; counter < namedViews.length; counter++) {
+				if (namedViews[counter].hasAttribute("id") && namedViews[counter].hasAttribute("pagecolor")) {
+					if (namedViews[counter].getAttribute("id") == "base") {
+						self.backgroundColor = namedViews[counter].getAttribute("pagecolor")
+						self.getRoot().style.backgroundColor = self.backgroundColor;
+						break;
+					}
+				}
+			}
+		};
+		
+		setBackgroundColor();
+		setupPresentationLayer();
+		return self;
+	})();
+
+	/****************************************
+	** UI functions
+	****************************************/
+	this.ui = (function() {
+		var self = {};
+		self.width = undefined;
+		self.height = undefined;
+		
+		/** Function to build a progress bar.
+		*	
+		*  @param parent node to attach the progress bar to
+		*/
+		self.createProgressBar = function(parentNode) {
+			var g = document.createElementNS(NSS['svg'], "g");
+			g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
+			g.setAttribute("id", "layer_progress_bar");
+			g.setAttribute("style", "display: none;");
+
+			var rect_progress_bar = document.createElementNS(NSS['svg'], "rect");
+			rect_progress_bar.setAttribute("style", "marker: none; fill: rgb(128, 128, 128); stroke: none;");
+			rect_progress_bar.setAttribute("id", "rect_progress_bar");
+			rect_progress_bar.setAttribute("x", 0);
+			rect_progress_bar.setAttribute("y", 0.99 * rps.ui.height);
+			rect_progress_bar.setAttribute("width", 0);
+			rect_progress_bar.setAttribute("height", 0.01 * rps.ui.height);
+			g.appendChild(rect_progress_bar);
+
+			var circle_timer_indicator = document.createElementNS(NSS['svg'], "circle");
+			circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
+			circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
+			circle_timer_indicator.setAttribute("cx", 0.005 * rps.ui.height);
+			circle_timer_indicator.setAttribute("cy", 0.995 * rps.ui.height);
+			circle_timer_indicator.setAttribute("r", 0.005 * rps.ui.height);
+			g.appendChild(circle_timer_indicator);
+			
+			parentNode.appendChild(g);
+		};
+
+		self.setWidth = function(width) {
+			self.width = width;
+		}
+		
+		self.setHeight = function(height) {
+			self.height = height;
+		}
+
+		return self;
+	})();
+	
+	this.initialize = function() {
+		alert("initialize");	
+	
+		// make the presentation scaleable.
+		if (this.dom.getRoot().getAttribute("viewBox")) {
+			this.ui.setWidth(this.dom.getRoot().viewBox.animVal.width);
+			this.ui.setHeight(this.dom.getRoot().viewBox.animVal.height);
+		} else {
+			this.ui.setHeight(parseFloat(this.dom.getRoot().getAttribute("height")));
+			this.ui.setWidth(parseFloat(this.dom.getRoot().getAttribute("width")));
+			this.dom.getRoot().setAttribute("viewBox", "0 0 " + this.ui.width + " " + this.ui.height);
+		}
+		this.dom.getRoot().setAttribute("width", "100%");
+		this.dom.getRoot().setAttribute("height", "100%");
+		
+		// create a clipping box for slides
+		this.dom.createClipPath(this.ui.width, this.ui.height);
+		
+		// add ui controls
+		this.ui.createProgressBar(this.dom.getPresentationLayer());
 	};
-
-	self.setWidth = function(width) {
-		self.width = width;
-	}
-	
-	self.setHeight = function(height) {
-		self.height = height;
-	}
-	
-	return self;
-}
-
-Represent.prototype.dom = new Represent_Dom();
-Represent.prototype.ui = new Represent_Ui();
-
-// Initialize rePresent
-Represent.prototype.initialize = function() {
-	alert("initialize");
-	
-	// make the presentation scaleable.
-	if (this.dom.getRoot().getAttribute("viewBox")) {
-		this.ui.setWidth(this.dom.getRoot().viewBox.animVal.width);
-		this.ui.setHeight(this.dom.getRoot().viewBox.animVal.height);
-	} else {
-		this.ui.setHeight(parseFloat(this.dom.getRoot().getAttribute("height")));
-		this.ui.setWidth(parseFloat(this.dom.getRoot().getAttribute("width")));
-		this.dom.getRoot().setAttribute("viewBox", "0 0 " + this.ui.width + " " + this.ui.height);
-	}
-	this.dom.getRoot().setAttribute("width", "100%");
-	this.dom.getRoot().setAttribute("height", "100%");
-	
-	// add ui controls
-	this.ui.createProgressBar(this.dom.getPresentationLayer());
 };
+
+// Start rePresent
 var rps = new Represent();
 rps.initialize();
 
@@ -280,40 +305,11 @@ rps.initialize();
  *  The whole presentation is set-up in this function.
  */
 function jessyInkInit() {
-	/*
-	TODO: is this needed?
-	// Defining clip-path.
-	var defsNodes = document.getElementsByTagNameNS(NSS['svg'], "defs");
-	if (defsNodes.length > 0)
-	{
-		var existingClipPath = document.getElementById("jessyInkSlideClipPath");
-
-		if (!existingClipPath)
-		{
-			var rectNode = document.createElementNS(NSS['svg'], "rect");
-			var clipPath = document.createElementNS(NSS['svg'], "clipPath");
-
-			rectNode.setAttribute("x", 0);
-			rectNode.setAttribute("y", 0);
-			rectNode.setAttribute("width", rps.ui.width);
-			rectNode.setAttribute("height", rps.ui.height);
-
-			clipPath.setAttribute("id", "jessyInkSlideClipPath");
-			clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
-
-			clipPath.appendChild(rectNode);
-			defsNodes[0].appendChild(clipPath);
-		}
-	}
-	*/
-
 	// Making a list of the slide and finding the master slide.	
 	nodes = rps.dom.getSlides();
 	masterSlide = rps.dom.getMaster();
-	
 	var tempSlides = new Array();
 	var existingJessyInkPresentationLayer = null;
-
 	for (var counter = 0; counter < nodes.length; counter++) {
 		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {
 			tempSlides.push(nodes[counter].getAttribute("id"));
@@ -324,7 +320,6 @@ function jessyInkInit() {
 	var hashObj = new LocationHash(window.location.hash);
 	activeSlide = hashObj.slideNumber;
 	activeEffect = hashObj.effectNumber;
-
 	if (activeSlide < 0) {
 		activeSlide = 0;
 	} else if (activeSlide >= tempSlides.length) {
@@ -335,8 +330,7 @@ function jessyInkInit() {
 	
 	// Gathering all the information about the transitions and effects of the slides, set the background
 	// from the master slide and substitute the auto-texts.
-	for (var counter = 0; counter < tempSlides.length; counter++)
-	{		
+	for (var counter = 0; counter < tempSlides.length; counter++) {		
 		var originalNode = document.getElementById(tempSlides[counter]);
 		originalNode.style.display = "none";
 		var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
@@ -345,6 +339,7 @@ function jessyInkInit() {
 		slides[counter]["original_element"] = originalNode;
 		slides[counter]["element"] = node;
 
+		/*
 		// Set build in transition.
 		slides[counter]["transitionIn"] = new Object();
 
@@ -368,7 +363,7 @@ function jessyInkInit() {
 		for (key in dict)
 			if (key != "name")
 				slides[counter]["transitionOut"]["options"][key] = dict[key];
-
+		*/
 		// Copy master slide content.
 		if (masterSlide)
 		{
@@ -724,20 +719,16 @@ function skipEffects(dir)
  *
  *  @param dir direction (1 = forwards, -1 = backwards)
  */
-function changeSlide(dir)
-{
+function changeSlide(dir) {
 	processingEffect = true;
 	effectArray = new Array();
 
 	effectArray[0] = new Object();
-	if (dir == 1)
-	{
+	if (dir == 1) {
 		effectArray[0]["effect"] = slides[activeSlide]["transitionOut"]["name"];
 		effectArray[0]["options"] = slides[activeSlide]["transitionOut"]["options"];
 		effectArray[0]["dir"] = -1;
-	}
-	else if (dir == -1)
-	{
+	} else if (dir == -1) {
 		effectArray[0]["effect"] = slides[activeSlide]["transitionIn"]["name"];
 		effectArray[0]["options"] = slides[activeSlide]["transitionIn"]["options"];
 		effectArray[0]["dir"] = 1;
@@ -749,8 +740,7 @@ function changeSlide(dir)
 
 	effectArray[1] = new Object();
 
-	if (dir == 1)
-	{
+	if (dir == 1) {
 		effectArray[1]["effect"] = slides[activeSlide]["transitionIn"]["name"];
 		effectArray[1]["options"] = slides[activeSlide]["transitionIn"]["options"];
 		effectArray[1]["dir"] = 1;
