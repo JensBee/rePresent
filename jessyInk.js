@@ -248,12 +248,7 @@ function jessyInkInit()
 		// Set build in transition.
 		slides[counter]["transitionIn"] = new Object();
 
-		var dict;
-
-		if (node.hasAttributeNS(NSS["jessyink"], "transitionIn"))
-			dict = propStrToDict(node.getAttributeNS(NSS["jessyink"], "transitionIn"));
-		else
-			dict = defaultTransitionInDict;
+		var dict = defaultTransitionInDict;
 
 		slides[counter]["transitionIn"]["name"] = dict["name"];
 		slides[counter]["transitionIn"]["options"] = new Object();
@@ -265,10 +260,7 @@ function jessyInkInit()
 		// Set build out transition.
 		slides[counter]["transitionOut"] = new Object();
 
-		if (node.hasAttributeNS(NSS["jessyink"], "transitionOut"))
-			dict = propStrToDict(node.getAttributeNS(NSS["jessyink"], "transitionOut"));
-		else
-			dict = defaultTransitionOutDict;
+		dict = defaultTransitionOutDict;
 
 		slides[counter]["transitionOut"]["name"] = dict["name"];
 		slides[counter]["transitionOut"]["options"] = new Object();
