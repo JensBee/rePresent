@@ -317,9 +317,6 @@ function jessyInkInit()
 		// Setting clip path.
 		node.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
 
-		// Substitute auto texts.
-		substituteAutoTexts(node, node.getAttributeNS(NSS["inkscape"], "label"), counter + 1, tempSlides.length);
-
 		node.removeAttributeNS(NSS["inkscape"], "groupmode");
 		node.removeAttributeNS(NSS["inkscape"], "label");
 
@@ -573,28 +570,6 @@ function jessyInkInit()
 	setInterval("updateTimer()", 1000);
 	setSlideToState(activeSlide, activeEffect);
 	jessyInkInitialised = true;
-}
-
-/** Function to subtitute the auto-texts.
- *
- *  @param node the node
- *  @param slideName name of the slide the node is on
- *  @param slideNumber number of the slide the node is on
- *  @param numberOfSlides number of slides in the presentation
- */
-function substituteAutoTexts(node, slideName, slideNumber, numberOfSlides)
-{
-	var texts = node.getElementsByTagNameNS(NSS["svg"], "tspan");
-
-	for (var textCounter = 0; textCounter < texts.length; textCounter++)
-	{
-		if (texts[textCounter].getAttributeNS(NSS["jessyink"], "autoText") == "slideNumber")
-			texts[textCounter].firstChild.nodeValue = slideNumber;
-		else if (texts[textCounter].getAttributeNS(NSS["jessyink"], "autoText") == "numberOfSlides")
-			texts[textCounter].firstChild.nodeValue = numberOfSlides;
-		else if (texts[textCounter].getAttributeNS(NSS["jessyink"], "autoText") == "slideTitle")
-			texts[textCounter].firstChild.nodeValue = slideName;
-	}
 }
 
 /** Convenience function to get an element depending on whether it has a property with a particular name.
@@ -1005,8 +980,7 @@ function getDefaultCharCodeDictionary()
 
 	charCodeDict[SLIDE_MODE]["i"] = function () { return toggleSlideIndex(); };
 	charCodeDict[SLIDE_MODE]["d"] = function () { return slideSwitchToDrawingMode(); };
-	charCodeDict[SLIDE_MODE]["D"] = function () { return slideQueryDuration(); };
-	charCodeDict[SLIDE_MODE]["n"] = function () { return slideAddSlide(activeSlide); };
+	charCodeDict[SLIDE_MODE]["D"] = function () { return slideQueryDuration(); };	
 	charCodeDict[SLIDE_MODE]["p"] = function () { return slideToggleProgressBarVisibility(); };
 	charCodeDict[SLIDE_MODE]["t"] = function () { return slideResetTimer(); };
 	charCodeDict[SLIDE_MODE]["e"] = function () { return slideUpdateExportLayer(); };
@@ -1249,17 +1223,6 @@ function slideQueryDuration()
 		timer_duration = new_duration;
 	}
 
-	updateTimer();
-}
-
-/** Function to add new slide in slide mode.
- *
- * @param afterSlide after which slide to insert the new one
- */
-function slideAddSlide(afterSlide)
-{
-	addSlide(afterSlide);
-	slideSetActiveSlide(afterSlide + 1);
 	updateTimer();
 }
 
@@ -2213,146 +2176,6 @@ function calcCoord(e)
 
 	svgPoint = svgPoint.matrixTransform(matrix.inverse());
 	return svgPoint;
-}
-
-/** Add slide.
- *
- *	@param after_slide after which slide the new slide should be inserted into the presentation
- */
-function addSlide(after_slide)
-{
-	number_of_added_slides++;
-
-	var g = document.createElementNS(NSS["svg"], "g");
-	g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
-	g.setAttribute("id", "Whiteboard " + Date() + " presentation copy");
-	g.setAttribute("style", "display: none;");
-
-	var new_slide = new Object();
-	new_slide["element"] = g;
-
-	// Set build in transition.
-	new_slide["transitionIn"] = new Object();
-	var dict = defaultTransitionInDict;
-	new_slide["transitionIn"]["name"] = dict["name"];
-	new_slide["transitionIn"]["options"] = new Object();
-
-	for (key in dict)
-		if (key != "name")
-			new_slide["transitionIn"]["options"][key] = dict[key];
-
-	// Set build out transition.
-	new_slide["transitionOut"] = new Object();
-	dict = defaultTransitionOutDict;
-	new_slide["transitionOut"]["name"] = dict["name"];
-	new_slide["transitionOut"]["options"] = new Object();
-
-	for (key in dict)
-		if (key != "name")
-			new_slide["transitionOut"]["options"][key] = dict[key];
-
-	// Copy master slide content.
-	if (masterSlide)
-	{
-		var clonedNode = suffixNodeIds(masterSlide.cloneNode(true), "_" + Date() + " presentation_copy");
-		clonedNode.removeAttributeNS(NSS["inkscape"], "groupmode");
-		clonedNode.removeAttributeNS(NSS["inkscape"], "label");
-		clonedNode.style.display = "inherit";
-
-		g.appendChild(clonedNode);
-	}
-
-	// Substitute auto texts.
-	substituteAutoTexts(g, "Whiteboard " + number_of_added_slides, "W" + number_of_added_slides, slides.length);
-
-	g.setAttribute("onmouseover", "if ((currentMode == INDEX_MODE) && ( activeSlide != " + (after_slide + 1) + ")) { indexSetActiveSlide(" + (after_slide + 1) + "); };");
-
-	// Create a transform group.
-	var transformGroup = document.createElementNS(NSS["svg"], "g");
-
-	// Add content to transform group.
-	while (g.firstChild)
-		transformGroup.appendChild(g.firstChild);
-
-	// Transfer the transform attribute from the node to the transform group.
-	if (g.getAttribute("transform"))
-	{
-		transformGroup.setAttribute("transform", g.getAttribute("transform"));
-		g.removeAttribute("transform");
-	}
-
-	// Create a view group.
-	var viewGroup = document.createElementNS(NSS["svg"], "g");
-
-	viewGroup.appendChild(transformGroup);
-	new_slide["viewGroup"] = g.appendChild(viewGroup);
-
-	// Insert background.
-	if (BACKGROUND_COLOR != null)
-	{
-		var rectNode = document.createElementNS(NSS["svg"], "rect");
-
-		rectNode.setAttribute("x", 0);
-		rectNode.setAttribute("y", 0);
-		rectNode.setAttribute("width", WIDTH);
-		rectNode.setAttribute("height", HEIGHT);
-		rectNode.setAttribute("id", "jessyInkBackground" + Date());
-		rectNode.setAttribute("fill", BACKGROUND_COLOR);
-
-		new_slide["viewGroup"].insertBefore(rectNode, new_slide["viewGroup"].firstChild);
-	}
-
-	// Set initial view even if there are no other views.
-	var matrixOld = (new matrixSVG()).fromElements(1, 0, 0, 0, 1, 0, 0, 0, 1);
-
-	new_slide["viewGroup"].setAttribute("transform", matrixOld.toAttribute());
-	new_slide.initialView = matrixOld.toAttribute();
-
-	// Insert slide
-	var node = slides[after_slide]["element"];
-	var next_node = node.nextSibling;
-	var parent_node = node.parentNode;
-
-	if (next_node)
-	{
-		parent_node.insertBefore(g, next_node);
-	}
-	else
-	{
-		parent_node.appendChild(g);
-	}
-
-	g = document.createElementNS(NSS["svg"], "g");
-	g.setAttributeNS(NSS["inkscape"], "groupmode", "layer");
-	g.setAttributeNS(NSS["inkscape"], "label", "Whiteboard " + number_of_added_slides);
-	g.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
-	g.setAttribute("id", "Whiteboard " + Date());
-	g.setAttribute("style", "display: none;");
-
-	new_slide["original_element"] = g;
-
-	node = slides[after_slide]["original_element"];
-	next_node = node.nextSibling;
-	parent_node = node.parentNode;
-
-	if (next_node)
-	{
-		parent_node.insertBefore(g, next_node);
-	}
-	else
-	{
-		parent_node.appendChild(g);
-	}
-
-	before_new_slide = slides.slice(0, after_slide + 1);
-	after_new_slide = slides.slice(after_slide + 1);
-	slides = before_new_slide.concat(new_slide, after_new_slide);
-
-	//resetting the counter attributes on the slides that follow the new slide...
-	for (var counter = after_slide+2; counter < slides.length; counter++)
-	{
-		slides[counter]["element"].setAttribute("onmouseover", "if ((currentMode == INDEX_MODE) && ( activeSlide != " + counter + ")) { indexSetActiveSlide(" + counter + "); };");
-	}
 }
 
 /** Convenience function to obtain a transformation matrix from a point matrix.
