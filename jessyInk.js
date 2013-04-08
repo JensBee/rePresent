@@ -70,11 +70,6 @@ var lastFrameTime = null;
 var processingEffect = false;
 var transCounter = 0;
 var effectArray = 0;
-var defaultTransitionInDict = new Object();
-defaultTransitionInDict["name"] = "appear";
-var defaultTransitionOutDict = new Object();
-defaultTransitionOutDict["name"] = "appear";
-var jessyInkInitialised = false;
 
 // Initialise char and key code dictionaries.
 var charCodeDictionary = getDefaultCharCodeDictionary();
@@ -371,129 +366,83 @@ function jessyInkInit() {
 	// Making a list of the slide and finding the master slide.	
 	nodes = rps.dom.getSlides();
 	masterSlide = rps.dom.getMaster();
-	var tempSlides = new Array();
-	var existingJessyInkPresentationLayer = null;
-	for (var counter = 0; counter < nodes.length; counter++) {
-		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {
-			tempSlides.push(nodes[counter].getAttribute("id"));
-		}
-	}
-
+	
 	// Set start slide.
 	var hashObj = new LocationHash(window.location.hash);
 	activeSlide = hashObj.slideNumber;
 	activeEffect = hashObj.effectNumber;
 	if (activeSlide < 0) {
 		activeSlide = 0;
-	} else if (activeSlide >= tempSlides.length) {
+	} 
+	/*
+	TODO: needs new upper bounds check
+	else if (activeSlide >= tempSlides.length) {
 		activeSlide = tempSlides.length - 1;
 	}
-
-	var originalNode = document.getElementById(tempSlides[counter]);
+	*/
 	
-	// Gathering all the information about the transitions and effects of the slides, set the background
-	// from the master slide and substitute the auto-texts.
-	for (var counter = 0; counter < tempSlides.length; counter++) {		
-		var originalNode = document.getElementById(tempSlides[counter]);
-		originalNode.style.display = "none";
-		var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
-		rps.dom.getPresentationLayer().appendChild(node);
-		slides[counter] = {
-			'original_element': originalNode,
-			'element': node
-		};
+	for (var counter = 0; counter < nodes.length; counter++) {
+		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {			
+			var originalNode = document.getElementById(nodes[counter].getAttribute("id"));
+			originalNode.style.display = "none";
+			var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
+			rps.dom.getPresentationLayer().appendChild(node);
+			slides[counter] = {
+				'original_element': originalNode,
+				'element': node
+			};
 
-		// Copy master slide content.
-		if (masterSlide) {
-			rps.dom.stackLayer(masterSlide, node, counter);
-		}
-
-		// Setting clip path.
-		node.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
-		// TODO: needed?
-		node.removeAttributeNS(NSS['inkscape'], "groupmode");
-		node.removeAttributeNS(NSS['inkscape'], "label");
-		// Make invisible, but keep in rendering tree to ensure that bounding box can be calculated.
-		node.setAttribute("opacity",0);
-		node.style.display = "inherit";
-
-		// Create a transform group.
-		var transformGroup = document.createElementNS(NSS['svg'], "g");
-
-		// Add content to transform group.
-		while (node.firstChild) {
-			transformGroup.appendChild(node.firstChild);
-		}
-
-		// Transfer the transform attribute from the node to the transform group.
-		if (node.getAttribute("transform")) {
-			transformGroup.setAttribute("transform", node.getAttribute("transform"));
-			node.removeAttribute("transform");
-		}
-
-		// Create a view group.
-		var viewGroup = document.createElementNS(NSS['svg'], "g");
-		viewGroup.appendChild(transformGroup);
-		slides[counter]["viewGroup"] = node.appendChild(viewGroup);
-
-		node.setAttribute("onmouseover", "if ((currentMode == INDEX_MODE) && ( activeSlide != " + counter + ")) { indexSetActiveSlide(" + counter + "); };");
-
-		// Set visibility for initial state.
-		if (counter == activeSlide) {
-			node.style.display = "inherit";
-			node.setAttribute("opacity",1);
-		} else {
-			node.style.display = "none";
-			node.setAttribute("opacity",0);
-		}
-	}
-
-	// Set key handler.
-	var jessyInkObjects = document.getElementsByTagNameNS(NSS['svg'], "g");
-
-	for (var counter = 0; counter < jessyInkObjects.length; counter++)
-	{
-		var elem = jessyInkObjects[counter];
-
-		if (elem.getAttributeNS(NSS['jessyink'], "customKeyBindings"))
-		{
-			if (elem.getCustomKeyBindings != undefined)
-				keyCodeDictionary = elem.getCustomKeyBindings();
-
-			if (elem.getCustomCharBindings != undefined)
-				charCodeDictionary = elem.getCustomCharBindings();
-		}
-	}
-
-	// Set mouse handler.
-	var jessyInkMouseHandler = document.getElementsByTagNameNS(NSS['jessyink'], "mousehandler");
-
-	for (var counter = 0; counter < jessyInkMouseHandler.length; counter++)
-	{
-		var elem = jessyInkMouseHandler[counter];
-
-		if (elem.getMouseHandler != undefined)
-		{
-			var tempDict = elem.getMouseHandler();
-
-			for (mode in tempDict)
-			{
-				if (!mouseHandlerDictionary[mode])
-					mouseHandlerDictionary[mode] = new Object();
-
-				for (handler in tempDict[mode])
-					mouseHandlerDictionary[mode][handler] = tempDict[mode][handler];
+			// Copy master slide content.
+			if (masterSlide) {
+				rps.dom.stackLayer(masterSlide, node, counter);
 			}
+
+			// Setting clip path.
+			node.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
+			// TODO: needed?
+			node.removeAttributeNS(NSS['inkscape'], "groupmode");
+			node.removeAttributeNS(NSS['inkscape'], "label");
+			// Make invisible, but keep in rendering tree to ensure that bounding box can be calculated.
+			node.setAttribute("opacity",0);
+			node.style.display = "inherit";
+
+			// Create a transform group.
+			var transformGroup = document.createElementNS(NSS['svg'], "g");
+
+			// Add content to transform group.
+			while (node.firstChild) {
+				transformGroup.appendChild(node.firstChild);
+			}
+
+			// Transfer the transform attribute from the node to the transform group.
+			if (node.getAttribute("transform")) {
+				transformGroup.setAttribute("transform", node.getAttribute("transform"));
+				node.removeAttribute("transform");
+			}
+
+			// Create a view group.
+			var viewGroup = document.createElementNS(NSS['svg'], "g");
+			viewGroup.appendChild(transformGroup);
+			slides[counter]["viewGroup"] = node.appendChild(viewGroup);
+
+			node.setAttribute("onmouseover", "if ((currentMode == INDEX_MODE) && ( activeSlide != " + counter + ")) { indexSetActiveSlide(" + counter + "); };");
+
+			// Set visibility for initial state.
+			if (counter == activeSlide) {
+				node.style.display = "inherit";
+				node.setAttribute("opacity",1);
+			} else {
+				node.style.display = "none";
+				node.setAttribute("opacity",0);
+			}
+				
 		}
 	}
 
 	activeEffect = 0;
-
-	
 	hideProgressBar();
 	setProgressBarValue(activeSlide);
 	setSlideToState(activeSlide, activeEffect);
-	jessyInkInitialised = true;
 }
 
 /** Convenience function to get an element depending on whether it has a property with a particular name.
