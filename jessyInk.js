@@ -188,6 +188,19 @@ var Represent = function() {
 			}
 		};
 		
+		/** Inserts a layer at the bottom (display order) an existing one.
+		* @param node to insert
+		* @param target node
+		* @param node id suffix (TODO: ?)
+		*/
+		self.stackLayer = function(node, target, suffix) {
+			var clonedNode = suffixNodeIds(node.cloneNode(true), "_" + suffix);
+			clonedNode.removeAttributeNS(NSS['inkscape'], "groupmode");
+			clonedNode.removeAttributeNS(NSS['inkscape'], "label");
+			clonedNode.style.display = "inherit";
+			target.insertBefore(clonedNode, target.firstChild);
+		};
+		
 		function nodeOrRoot(node) {
 			if (node === undefined || node === null) {
 				return self.node.root;
@@ -274,9 +287,59 @@ var Represent = function() {
 		return self;
 	})();
 	
-	this.initialize = function() {
-		alert("initialize");	
+	/****************************************
+	** Slideshow functions
+	****************************************/
+	this.stage = (function() {
+		self = {};
+		
+		/** Function to change between slides.
+		*
+		*  @param dir direction (1 = forwards, -1 = backwards)
+		*/
+		self.changeSlide = function(dir) {
+			processingEffect = true;
+			effectArray = [ {
+					'dir': (dir == 1 ? -1 : 1),
+					'element': slides[activeSlide]["element"],
+					'effect': "appear",
+					'options': {}
+				},{
+					'dir': (dir == 1 ? 1 : -1),
+					'element': slides[activeSlide + dir]["element"],
+					'effect': "appear",
+					'options': {}
+				}
+			];
 	
+			activeSlide += dir;
+			setProgressBarValue(activeSlide);
+			activeEffect = 0;
+
+			if (dir == -1) {
+				setSlideToState(activeSlide, STATE_END);
+			} else {
+				setSlideToState(activeSlide, STATE_START);
+			}
+
+			transCounter = 0;
+			startTime = (new Date()).getTime();
+			lastFrameTime = null;
+			effect(dir);
+		};
+		
+		self.nextSlide = function() {
+			self.changeSlide(1);
+		};
+		
+		self.prevSlide = function() {
+			self.changeSlide(-1);
+		};
+			
+		return self;
+	})();
+	
+	this.initialize = function() {
 		// make the presentation scaleable.
 		if (this.dom.getRoot().getAttribute("viewBox")) {
 			this.ui.setWidth(this.dom.getRoot().viewBox.animVal.width);
@@ -335,128 +398,39 @@ function jessyInkInit() {
 		originalNode.style.display = "none";
 		var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
 		rps.dom.getPresentationLayer().appendChild(node);
-		slides[counter] = new Object();
-		slides[counter]["original_element"] = originalNode;
-		slides[counter]["element"] = node;
+		slides[counter] = {
+			'original_element': originalNode,
+			'element': node
+		};
 
-		/*
-		// Set build in transition.
-		slides[counter]["transitionIn"] = new Object();
-
-		var dict = defaultTransitionInDict;
-
-		slides[counter]["transitionIn"]["name"] = dict["name"];
-		slides[counter]["transitionIn"]["options"] = new Object();
-
-		for (key in dict)
-			if (key != "name")
-				slides[counter]["transitionIn"]["options"][key] = dict[key];
-
-		// Set build out transition.
-		slides[counter]["transitionOut"] = new Object();
-
-		dict = defaultTransitionOutDict;
-
-		slides[counter]["transitionOut"]["name"] = dict["name"];
-		slides[counter]["transitionOut"]["options"] = new Object();
-
-		for (key in dict)
-			if (key != "name")
-				slides[counter]["transitionOut"]["options"][key] = dict[key];
-		*/
 		// Copy master slide content.
-		if (masterSlide)
-		{
-			var clonedNode = suffixNodeIds(masterSlide.cloneNode(true), "_" + counter);
-			clonedNode.removeAttributeNS(NSS['inkscape'], "groupmode");
-			clonedNode.removeAttributeNS(NSS['inkscape'], "label");
-			clonedNode.style.display = "inherit";
-
-			node.insertBefore(clonedNode, node.firstChild);
+		if (masterSlide) {
+			rps.dom.stackLayer(masterSlide, node, counter);
 		}
 
 		// Setting clip path.
 		node.setAttribute("clip-path", "url(#jessyInkSlideClipPath)");
-
+		// TODO: needed?
 		node.removeAttributeNS(NSS['inkscape'], "groupmode");
 		node.removeAttributeNS(NSS['inkscape'], "label");
+		// Make invisible, but keep in rendering tree to ensure that bounding box can be calculated.
+		node.setAttribute("opacity",0);
+		node.style.display = "inherit";
 
 		// Set effects.
 		var tempEffects = new Array();
 		var groups = new Object();
 
-		for (var IOCounter = 0; IOCounter <= 1; IOCounter++)
-		{
-			var propName = "";
-			var dir = 0;
-
-			if (IOCounter == 0)
-			{
-				propName = "effectIn";
-				dir = 1;
-			}
-			else if (IOCounter == 1)
-			{
-				propName = "effectOut";
-				dir = -1;
-			}
-
-			var effects = getElementsByPropertyNS(node, NSS['jessyink'], propName);
-
-			for (var effectCounter = 0; effectCounter < effects.length; effectCounter++)
-			{
-				var element = document.getElementById(effects[effectCounter]);
-				var dict = propStrToDict(element.getAttributeNS(NSS['jessyink'], propName));
-
-				// Put every element that has an effect associated with it, into its own group.
-				// Unless of course, we already put it into its own group.
-				if (!(groups[element.id]))
-				{
-					var newGroup = document.createElementNS(NSS['svg'], "g");
-
-					element.parentNode.insertBefore(newGroup, element);
-					newGroup.appendChild(element.parentNode.removeChild(element));
-					groups[element.id] = newGroup;
-				}
-
-				var effectDict = new Object();
-
-				effectDict["effect"] = dict["name"];
-				effectDict["dir"] = dir;
-				effectDict["element"] = groups[element.id];
-
-				for (var option in dict)
-				{
-					if ((option != "name") && (option != "order"))
-					{
-						if (!effectDict["options"])
-							effectDict["options"] = new Object();
-
-						effectDict["options"][option] = dict[option];
-					}
-				}
-
-				if (!tempEffects[dict["order"]])
-					tempEffects[dict["order"]] = new Array();
-
-				tempEffects[dict["order"]][tempEffects[dict["order"]].length] = effectDict;
-			}
-		}
-
-		// Make invisible, but keep in rendering tree to ensure that bounding box can be calculated.
-		node.setAttribute("opacity",0);
-		node.style.display = "inherit";
-
 		// Create a transform group.
 		var transformGroup = document.createElementNS(NSS['svg'], "g");
 
 		// Add content to transform group.
-		while (node.firstChild)
+		while (node.firstChild) {
 			transformGroup.appendChild(node.firstChild);
+		}
 
 		// Transfer the transform attribute from the node to the transform group.
-		if (node.getAttribute("transform"))
-		{
+		if (node.getAttribute("transform")) {
 			transformGroup.setAttribute("transform", node.getAttribute("transform"));
 			node.removeAttribute("transform");
 		}
@@ -627,7 +601,6 @@ function jessyInkInit() {
 	
 	hideProgressBar();
 	setProgressBarValue(activeSlide);
-	//setTimeIndicatorValue(0);
 	setSlideToState(activeSlide, activeEffect);
 	jessyInkInitialised = true;
 }
@@ -683,7 +656,7 @@ function dispatchEffects(dir)
 	}
 	else if (((dir == 1) && (activeSlide < (slides.length - 1))) || (((dir == -1) && (activeSlide > 0))))
 	{
-		changeSlide(dir);
+		rps.stage.changeSlide(dir);
 	}
 }
 
@@ -711,63 +684,8 @@ function skipEffects(dir)
 	}
 	else if (((dir == 1) && (activeSlide < (slides.length - 1))) || (((dir == -1) && (activeSlide > 0))))
 	{
-		changeSlide(dir);
+		rps.stage.changeSlide(dir);
 	}
-}
-
-/** Function to change between slides.
- *
- *  @param dir direction (1 = forwards, -1 = backwards)
- */
-function changeSlide(dir) {
-	processingEffect = true;
-	effectArray = new Array();
-
-	effectArray[0] = new Object();
-	if (dir == 1) {
-		effectArray[0]["effect"] = slides[activeSlide]["transitionOut"]["name"];
-		effectArray[0]["options"] = slides[activeSlide]["transitionOut"]["options"];
-		effectArray[0]["dir"] = -1;
-	} else if (dir == -1) {
-		effectArray[0]["effect"] = slides[activeSlide]["transitionIn"]["name"];
-		effectArray[0]["options"] = slides[activeSlide]["transitionIn"]["options"];
-		effectArray[0]["dir"] = 1;
-	}
-	effectArray[0]["element"] = slides[activeSlide]["element"];
-
-	activeSlide += dir;
-	setProgressBarValue(activeSlide);
-
-	effectArray[1] = new Object();
-
-	if (dir == 1) {
-		effectArray[1]["effect"] = slides[activeSlide]["transitionIn"]["name"];
-		effectArray[1]["options"] = slides[activeSlide]["transitionIn"]["options"];
-		effectArray[1]["dir"] = 1;
-	}
-	else if (dir == -1)
-	{
-		effectArray[1]["effect"] = slides[activeSlide]["transitionOut"]["name"];
-		effectArray[1]["options"] = slides[activeSlide]["transitionOut"]["options"];
-		effectArray[1]["dir"] = -1;
-	}
-
-	effectArray[1]["element"] = slides[activeSlide]["element"];
-
-	if (slides[activeSlide]["effects"] && (dir == -1))
-		activeEffect = slides[activeSlide]["effects"].length;
-	else
-		activeEffect = 0;
-
-	if (dir == -1)
-		setSlideToState(activeSlide, STATE_END);
-	else
-		setSlideToState(activeSlide, STATE_START);
-
-	transCounter = 0;
-	startTime = (new Date()).getTime();
-	lastFrameTime = null;
-	effect(dir);
 }
 
 /** Function to toggle between index and slide mode.
@@ -1282,7 +1200,7 @@ function slideQueryDuration() {
 		}
 		document.getElementById("circle_timer_indicator").style.display = "inherit";
 		timer_interval = setInterval("updateTimer()", 1000);
-		createProgressBar(rps.dom.getPresentationLayer());		
+		rps.ui.createProgressBar(rps.dom.getPresentationLayer());		
 		updateTimer();
 	} else  {
 		document.getElementById("circle_timer_indicator").style.display = "none";
