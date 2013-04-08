@@ -53,14 +53,11 @@ var MOUSE_MOVE = 3;
 var MOUSE_WHEEL = 4;
 
 // Parameters.
-var HEIGHT = 0;
-var WIDTH = 0;
 var INDEX_COLUMNS_DEFAULT = 4;
 var INDEX_COLUMNS = INDEX_COLUMNS_DEFAULT;
 var INDEX_OFFSET = 0;
 var STATE_START = -1;
 var STATE_END = -2;
-var BACKGROUND_COLOR = null;
 var slides = new Array();
 
 // Initialisation.
@@ -108,8 +105,8 @@ var path_paint_width = path_width;
 
 // Main class
 var Represent = function () {
-	var self = this;
-	return self;
+	var represent = this;
+	return represent;
 };
 
 /****************************************
@@ -117,13 +114,13 @@ var Represent = function () {
 ****************************************/
 var Represent_Dom = function() {
 	var self = this;
-	
-	self._DOM = {
+	self.node = {
 		// document root
 		'root' : document.getElementsByTagNameNS(NSS['svg'], "svg")[0],
 		// presentation layer
 		'presentationLayer' : document.createElementNS(NSS['svg'], "g")
 	};
+	self.backgroundColor = '#fff';
 	
 	/** Find slide layers nested inside a given parent. Slide nodes are labeled with a leading tilde (~).
 	* @param parent node
@@ -161,20 +158,21 @@ var Represent_Dom = function() {
 	}
 	
 	self.getPresentationLayer = function() {
-		return this._DOM['presentationLayer'];
+		return this.node.presentationLayer;
 	};
 	
 	self.getRoot = function() {
-		return this._DOM['root'];
+		return this.node.root;
 	};
 	
 	function nodeOrRoot(node) {
 		if (node === undefined || node === null) {
-			return self._DOM['root'];
+			return self.node.root;
 		}
 		return node;
 	}
 	
+	/** Create a layer used for displaying slides. */
 	function setupPresentationLayer() {
 		var layer = self.getPresentationLayer();
 		layer.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
@@ -185,6 +183,21 @@ var Represent_Dom = function() {
 		self.getRoot().appendChild(layer);
 	};
 	
+	/** Sets the background color according to the inkscape setting. */
+	function setBackgroundColor() {
+		var namedViews = document.getElementsByTagNameNS(NSS['sodipodi'], "namedview");
+		for (var counter = 0; counter < namedViews.length; counter++) {
+			if (namedViews[counter].hasAttribute("id") && namedViews[counter].hasAttribute("pagecolor")) {
+				if (namedViews[counter].getAttribute("id") == "base") {
+					self.backgroundColor = namedViews[counter].getAttribute("pagecolor")
+					self.getRoot().style.backgroundColor = self.backgroundColor;
+					break;
+				}
+			}
+		}
+	};
+	
+	setBackgroundColor();
 	setupPresentationLayer();
 	return self;
 };
@@ -194,6 +207,8 @@ var Represent_Dom = function() {
 ****************************************/
 var Represent_Ui = function() {
 	var self = this;
+	self.width = undefined;
+	self.height = undefined;
 	
 	/** Function to build a progress bar.
 	*	
@@ -209,29 +224,53 @@ var Represent_Ui = function() {
 		rect_progress_bar.setAttribute("style", "marker: none; fill: rgb(128, 128, 128); stroke: none;");
 		rect_progress_bar.setAttribute("id", "rect_progress_bar");
 		rect_progress_bar.setAttribute("x", 0);
-		rect_progress_bar.setAttribute("y", 0.99 * HEIGHT);
+		rect_progress_bar.setAttribute("y", 0.99 * rps.ui.height);
 		rect_progress_bar.setAttribute("width", 0);
-		rect_progress_bar.setAttribute("height", 0.01 * HEIGHT);
+		rect_progress_bar.setAttribute("height", 0.01 * rps.ui.height);
 		g.appendChild(rect_progress_bar);
 
 		var circle_timer_indicator = document.createElementNS(NSS['svg'], "circle");
 		circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
 		circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
-		circle_timer_indicator.setAttribute("cx", 0.005 * HEIGHT);
-		circle_timer_indicator.setAttribute("cy", 0.995 * HEIGHT);
-		circle_timer_indicator.setAttribute("r", 0.005 * HEIGHT);
+		circle_timer_indicator.setAttribute("cx", 0.005 * rps.ui.height);
+		circle_timer_indicator.setAttribute("cy", 0.995 * rps.ui.height);
+		circle_timer_indicator.setAttribute("r", 0.005 * rps.ui.height);
 		g.appendChild(circle_timer_indicator);
 		
 		parentNode.appendChild(g);
+	};
+
+	self.setWidth = function(width) {
+		self.width = width;
 	}
-		
+	
+	self.setHeight = function(height) {
+		self.height = height;
+	}
+	
 	return self;
 }
 
 Represent.prototype.dom = new Represent_Dom();
 Represent.prototype.ui = new Represent_Ui();
+
+// Initialize rePresent
 Represent.prototype.initialize = function() {
 	alert("initialize");
+	
+	// make the presentation scaleable.
+	if (this.dom.getRoot().getAttribute("viewBox")) {
+		this.ui.setWidth(this.dom.getRoot().viewBox.animVal.width);
+		this.ui.setHeight(this.dom.getRoot().viewBox.animVal.height);
+	} else {
+		this.ui.setHeight(parseFloat(this.dom.getRoot().getAttribute("height")));
+		this.ui.setWidth(parseFloat(this.dom.getRoot().getAttribute("width")));
+		this.dom.getRoot().setAttribute("viewBox", "0 0 " + this.ui.width + " " + this.ui.height);
+	}
+	this.dom.getRoot().setAttribute("width", "100%");
+	this.dom.getRoot().setAttribute("height", "100%");
+	
+	// add ui controls
 	this.ui.createProgressBar(this.dom.getPresentationLayer());
 };
 var rps = new Represent();
@@ -240,55 +279,11 @@ rps.initialize();
 /** Initialisation function.
  *  The whole presentation is set-up in this function.
  */
-function jessyInkInit()
-{
-	// Make sure we only execute this code once. Double execution can occur if the onload event handler is set
-	// in the main svg tag as well (as was recommended in earlier versions). Executing this function twice does
-	// not lead to any problems, but it takes more time.
-	if (jessyInkInitialised)
-		return;
-
-	// Making the presentation scaleable.
-	var VIEWBOX = rps.dom.getRoot().getAttribute("viewBox");
-
-	if (VIEWBOX)
-	{
-		WIDTH = rps.dom.getRoot().viewBox.animVal.width;
-		HEIGHT = rps.dom.getRoot().viewBox.animVal.height;
-	}
-	else
-	{
-		HEIGHT = parseFloat(rps.dom.getRoot().getAttribute("height"));
-		WIDTH = parseFloat(rps.dom.getRoot().getAttribute("width"));
-		rps.dom.getRoot().setAttribute("viewBox", "0 0 " + WIDTH + " " + HEIGHT);
-	}
-
-	rps.dom.getRoot().setAttribute("width", "100%");
-	rps.dom.getRoot().setAttribute("height", "100%");
-
-	// Setting the background color.
-	var namedViews = document.getElementsByTagNameNS(NSS['sodipodi'], "namedview");
-
-	for (var counter = 0; counter < namedViews.length; counter++)
-	{
-		if (namedViews[counter].hasAttribute("id") && namedViews[counter].hasAttribute("pagecolor"))
-		{
-			if (namedViews[counter].getAttribute("id") == "base")
-			{
-				BACKGROUND_COLOR = namedViews[counter].getAttribute("pagecolor");
-				var newAttribute = "background-color:" + BACKGROUND_COLOR + ";";
-
-				if (rps.dom.getRoot().hasAttribute("style"))
-					newAttribute += rps.dom.getRoot().getAttribute("style");
-
-				rps.dom.getRoot().setAttribute("style", newAttribute);
-			}
-		}
-	}
-
+function jessyInkInit() {
+	/*
+	TODO: is this needed?
 	// Defining clip-path.
 	var defsNodes = document.getElementsByTagNameNS(NSS['svg'], "defs");
-
 	if (defsNodes.length > 0)
 	{
 		var existingClipPath = document.getElementById("jessyInkSlideClipPath");
@@ -300,8 +295,8 @@ function jessyInkInit()
 
 			rectNode.setAttribute("x", 0);
 			rectNode.setAttribute("y", 0);
-			rectNode.setAttribute("width", WIDTH);
-			rectNode.setAttribute("height", HEIGHT);
+			rectNode.setAttribute("width", rps.ui.width);
+			rectNode.setAttribute("height", rps.ui.height);
 
 			clipPath.setAttribute("id", "jessyInkSlideClipPath");
 			clipPath.setAttribute("clipPathUnits", "userSpaceOnUse");
@@ -310,6 +305,7 @@ function jessyInkInit()
 			defsNodes[0].appendChild(clipPath);
 		}
 	}
+	*/
 
 	// Making a list of the slide and finding the master slide.	
 	nodes = rps.dom.getSlides();
@@ -320,13 +316,8 @@ function jessyInkInit()
 
 	for (var counter = 0; counter < nodes.length; counter++) {
 		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {
-			if (nodes[counter].getAttributeNS(NSS['inkscape'], "label").substring(0, 1) === "!") { // global master prefixed by '!'
-				masterSlide = nodes[counter];
-				masterSlide.style.display = "none"; // there should be only one global master, but we hide all we'll find
-			} else {
-				tempSlides.push(nodes[counter].getAttribute("id"));
-			}
-		}
+			tempSlides.push(nodes[counter].getAttribute("id"));
+		} 
 		else if (nodes[counter].getAttributeNS(NSS['jessyink'], 'element')) {
 			handleElement(nodes[counter]);
 		}
@@ -485,16 +476,16 @@ function jessyInkInit()
 		slides[counter]["viewGroup"] = node.appendChild(viewGroup);
 
 		// Insert background.
-		if (BACKGROUND_COLOR != null)
+		if (rps.dom.backgroundColor != null)
 		{
 			var rectNode = document.createElementNS(NSS['svg'], "rect");
 
 			rectNode.setAttribute("x", 0);
 			rectNode.setAttribute("y", 0);
-			rectNode.setAttribute("width", WIDTH);
-			rectNode.setAttribute("height", HEIGHT);
+			rectNode.setAttribute("width", rps.ui.width);
+			rectNode.setAttribute("height", rps.ui.height);
 			rectNode.setAttribute("id", "jessyInkBackground" + counter);
-			rectNode.setAttribute("fill", BACKGROUND_COLOR);
+			rectNode.setAttribute("fill", rps.dom.backgroundColor);
 
 			slides[counter]["viewGroup"].insertBefore(rectNode, slides[counter]["viewGroup"].firstChild);
 		}
@@ -911,8 +902,8 @@ function displayIndex(offsetNumber)
 		}
 		else
 		{
-			offsetX = ((counter - offsetNumber) % INDEX_COLUMNS) * WIDTH;
-			offsetY = Math.floor((counter - offsetNumber) / INDEX_COLUMNS) * HEIGHT;
+			offsetX = ((counter - offsetNumber) % INDEX_COLUMNS) * rps.ui.width;
+			offsetY = Math.floor((counter - offsetNumber) / INDEX_COLUMNS) * rps.ui.height;
 
 			slides[counter]["element"].setAttribute("transform","scale("+1/INDEX_COLUMNS+") translate("+offsetX+","+offsetY+")");
 			slides[counter]["element"].style.display = "inherit";
@@ -1416,8 +1407,8 @@ function slideUpdateExportLayer()
 
 	// Delete viewbox form new imag and set width and height.
 	newDoc.removeAttribute('viewbox');
-	newDoc.setAttribute('width', WIDTH);
-	newDoc.setAttribute('height', HEIGHT);
+	newDoc.setAttribute('width', rps.ui.width);
+	newDoc.setAttribute('height', rps.ui.height);
 
 	// Delete all layers and script elements.
 	var nodesToBeRemoved = new Array();
@@ -1916,8 +1907,8 @@ function pop(dir, element, time, options)
 			if (opacityFraction > 1)
 				opacityFraction = 1;
 			element.setAttribute("opacity", opacityFraction);
-			var offsetX = WIDTH * (1.0 - fraction) / 2.0;
-			var offsetY = HEIGHT * (1.0 - fraction) / 2.0;
+			var offsetX = rps.ui.width * (1.0 - fraction) / 2.0;
+			var offsetY = rps.ui.height * (1.0 - fraction) / 2.0;
 			element.setAttribute("transform", "translate(" + offsetX + "," + offsetY + ") scale(" + fraction + ")");
 		}
 	}
@@ -2153,21 +2144,21 @@ function setProgressBarValue(value)
 	{
 		// First slide, assumed to be the title of the presentation
 		var x = 0;
-		var w = 0.01 * HEIGHT;
+		var w = 0.01 * rps.ui.height;
 	}
 	else if (value >= slides.length - 1)
 	{
 		// Last slide, assumed to be the end of the presentation
-		var x = WIDTH - 0.01 * HEIGHT;
-		var w = 0.01 * HEIGHT;
+		var x = rps.ui.width - 0.01 * rps.ui.height;
+		var w = 0.01 * rps.ui.height;
 	}
 	else
 	{
 		value -= 1;
 		value /= (slides.length - 2);
 
-		var x = WIDTH * value;
-		var w = WIDTH / (slides.length - 2);
+		var x = rps.ui.width * value;
+		var w = rps.ui.width / (slides.length - 2);
 	}
 
 	rect_progress_bar.setAttribute("x", x);
@@ -2192,7 +2183,7 @@ function setTimeIndicatorValue(value) {
 		value = 1.0;
 	}
 
-	var cx = (WIDTH - 0.01 * HEIGHT) * value + 0.005 * HEIGHT;
+	var cx = (rps.ui.width - 0.01 * rps.ui.height) * value + 0.005 * rps.ui.height;
 	circle_timer_indicator.setAttribute("cx", cx);
 }
 
@@ -2231,7 +2222,7 @@ function calcCoord(e) {
  */
 function pointMatrixToTransformation(mPoints)
 {
-	mPointsOld = (new matrixSVG()).fromElements(0, WIDTH, WIDTH, 0, 0, HEIGHT, 1, 1, 1);
+	mPointsOld = (new matrixSVG()).fromElements(0, rps.ui.width, rps.ui.width, 0, 0, rps.ui.height, 1, 1, 1);
 
 	return mPointsOld.mult(mPoints.inv());
 }
@@ -2250,20 +2241,20 @@ function rectToMatrix(rect)
 	rectXcorr = 0;
 	rectYcorr = 0;
 
-	scaleX = WIDTH / rectWidth;
-	scaleY = HEIGHT / rectHeight;
+	scaleX = rps.ui.width / rectWidth;
+	scaleY = rps.ui.height / rectHeight;
 
 	if (scaleX > scaleY)
 	{
 		scaleX = scaleY;
-		rectXcorr -= (WIDTH / scaleX - rectWidth) / 2;
-		rectWidth = WIDTH / scaleX;
+		rectXcorr -= (rps.ui.width / scaleX - rectWidth) / 2;
+		rectWidth = rps.ui.width / scaleX;
 	}	
 	else
 	{
 		scaleY = scaleX;
-		rectYcorr -= (HEIGHT / scaleY - rectHeight) / 2;
-		rectHeight = HEIGHT / scaleY;
+		rectYcorr -= (rps.ui.height / scaleY - rectHeight) / 2;
+		rectHeight = rps.ui.height / scaleY;
 	}
 
 	if (rect.transform.baseVal.numberOfItems < 1)
