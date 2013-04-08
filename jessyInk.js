@@ -184,20 +184,6 @@ function jessyInkInit()
 
 	// Making a list of the slide and finding the master slide.	
 	var nodes = document.getElementsByTagNameNS(NSS["svg"], "g");
-	
-	/*
-	// use only first tier nodes as slides
-	var nodes = new Array();
-	var rootElement = document.documentElement;
-	var firstTier = rootElement.childNodes;
-	for (var i = 0; i < firstTier.length; i++) {
-		var node = firstTier[i];
-		if (node.nodeType == 1 && node.nodeName === "g" && node.getAttributeNS(NSS["inkscape"], "label").substring(0, 1) !== "~") { // node is an element
-			nodes.push(node);
-		}
-	}
-	*/
-	
 	var tempSlides = new Array();
 	var existingJessyInkPresentationLayer = null;
 
@@ -262,7 +248,7 @@ function jessyInkInit()
 	// Gathering all the information about the transitions and effects of the slides, set the background
 	// from the master slide and substitute the auto-texts.
 	for (var counter = 0; counter < tempSlides.length; counter++)
-	{
+	{		
 		var originalNode = document.getElementById(tempSlides[counter]);
 		originalNode.style.display = "none";
 		var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
