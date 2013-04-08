@@ -417,10 +417,6 @@ function jessyInkInit() {
 		node.setAttribute("opacity",0);
 		node.style.display = "inherit";
 
-		// Set effects.
-		var tempEffects = new Array();
-		var groups = new Object();
-
 		// Create a transform group.
 		var transformGroup = document.createElementNS(NSS['svg'], "g");
 
@@ -437,113 +433,16 @@ function jessyInkInit() {
 
 		// Create a view group.
 		var viewGroup = document.createElementNS(NSS['svg'], "g");
-
 		viewGroup.appendChild(transformGroup);
 		slides[counter]["viewGroup"] = node.appendChild(viewGroup);
-
-		// Insert background.
-		if (rps.dom.backgroundColor != null)
-		{
-			var rectNode = document.createElementNS(NSS['svg'], "rect");
-
-			rectNode.setAttribute("x", 0);
-			rectNode.setAttribute("y", 0);
-			rectNode.setAttribute("width", rps.ui.width);
-			rectNode.setAttribute("height", rps.ui.height);
-			rectNode.setAttribute("id", "jessyInkBackground" + counter);
-			rectNode.setAttribute("fill", rps.dom.backgroundColor);
-
-			slides[counter]["viewGroup"].insertBefore(rectNode, slides[counter]["viewGroup"].firstChild);
-		}
-
-		// Set views.
-		var tempViews = new Array();
-		var views = getElementsByPropertyNS(node, NSS['jessyink'], "view");
-		var matrixOld = (new matrixSVG()).fromElements(1, 0, 0, 0, 1, 0, 0, 0, 1);
-
-		// Set initial view even if there are no other views.
-		slides[counter]["viewGroup"].setAttribute("transform", matrixOld.toAttribute());
-		slides[counter].initialView = matrixOld.toAttribute();
-
-		for (var viewCounter = 0; viewCounter < views.length; viewCounter++)
-		{
-			var element = document.getElementById(views[viewCounter]);
-			var dict = propStrToDict(element.getAttributeNS(NSS['jessyink'], "view"));
-
-			if (dict["order"] == 0)
-			{
-				matrixOld = pointMatrixToTransformation(rectToMatrix(element)).mult((new matrixSVG()).fromSVGMatrix(slides[counter].viewGroup.getScreenCTM()).inv().mult((new matrixSVG()).fromSVGMatrix(element.parentNode.getScreenCTM())).inv());
-				slides[counter].initialView = matrixOld.toAttribute();
-			}
-			else
-			{
-				var effectDict = new Object();
-
-				effectDict["effect"] = dict["name"];
-				effectDict["dir"] = 1;
-				effectDict["element"] = slides[counter]["viewGroup"];
-				effectDict["order"] = dict["order"];
-
-				for (var option in dict)
-				{
-					if ((option != "name") && (option != "order"))
-					{
-						if (!effectDict["options"])
-							effectDict["options"] = new Object();
-
-						effectDict["options"][option] = dict[option];
-					}
-				}
-
-				effectDict["options"]["matrixNew"] = pointMatrixToTransformation(rectToMatrix(element)).mult((new matrixSVG()).fromSVGMatrix(slides[counter].viewGroup.getScreenCTM()).inv().mult((new matrixSVG()).fromSVGMatrix(element.parentNode.getScreenCTM())).inv());
-
-				tempViews[dict["order"]] = effectDict;
-			}
-
-			// Remove element.
-			element.parentNode.removeChild(element);
-		}
-
-		// Consolidate view array and append it to the effect array.
-		if (tempViews.length > 0)
-		{
-			for (var viewCounter = 0; viewCounter < tempViews.length; viewCounter++)
-			{
-				if (tempViews[viewCounter])
-				{
-					tempViews[viewCounter]["options"]["matrixOld"] = matrixOld;
-					matrixOld = tempViews[viewCounter]["options"]["matrixNew"];
-
-					if (!tempEffects[tempViews[viewCounter]["order"]])
-						tempEffects[tempViews[viewCounter]["order"]] = new Array();
-
-					tempEffects[tempViews[viewCounter]["order"]][tempEffects[tempViews[viewCounter]["order"]].length] = tempViews[viewCounter];
-				}
-			}
-		}
-
-		// Set consolidated effect array.
-		if (tempEffects.length > 0)
-		{
-			slides[counter]["effects"] = new Array();
-
-			for (var effectCounter = 0; effectCounter < tempEffects.length; effectCounter++)
-			{
-				if (tempEffects[effectCounter])
-					slides[counter]["effects"][slides[counter]["effects"].length] = tempEffects[effectCounter];
-			}
-		}
 
 		node.setAttribute("onmouseover", "if ((currentMode == INDEX_MODE) && ( activeSlide != " + counter + ")) { indexSetActiveSlide(" + counter + "); };");
 
 		// Set visibility for initial state.
-		if (counter == activeSlide)
-		{
+		if (counter == activeSlide) {
 			node.style.display = "inherit";
 			node.setAttribute("opacity",1);
-		}
-		else
-		{
+		} else {
 			node.style.display = "none";
 			node.setAttribute("opacity",0);
 		}
@@ -588,15 +487,7 @@ function jessyInkInit() {
 		}
 	}
 
-	// Check effect number.
-	if ((activeEffect < 0) || (!slides[activeSlide].effects))
-	{
-		activeEffect = 0;
-	}
-	else if (activeEffect > slides[activeSlide].effects.length)
-	{
-		activeEffect = slides[activeSlide].effects.length;
-	}
+	activeEffect = 0;
 
 	
 	hideProgressBar();
