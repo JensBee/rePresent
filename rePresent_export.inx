@@ -3,9 +3,9 @@
 	<_name>rePresent presentation export</_name>
 	<id>represent.export</id>
 	<dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
-	<dependency type="executable" location="extensions">rePresent_export.py</dependency>
+	<dependency type="executable" location="extensions">rePresent/export.py</dependency>
 	<dependency type="executable" location="extensions">inkex.py</dependency>
-	<dependency type="executable" location="extensions">inkinkex.py</dependency>
+	<dependency type="executable" location="extensions">rePresent/inkinkex.py</dependency>
 	<output>
 		<extension>.svg</extension>
 		<mimetype>application/x-zip</mimetype>
@@ -14,7 +14,7 @@
 		<dataloss>TRUE</dataloss>
 	</output>
 	<script>
-		<command reldir="extensions" interpreter="python">rePresent_export.py</command>
+		<command reldir="extensions" interpreter="python">rePresent/export.py</command>
 		<helper_extension>org.inkscape.output.svg.inkscape</helper_extension>
 	</script>
 </inkscape-extension>

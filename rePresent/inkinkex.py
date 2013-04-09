@@ -130,7 +130,6 @@ class InkEffect(inkex.Effect):
                 # ...
 
         """
-        err_file = open("/tmp/inkscape_rps_cmd.txt" , "w")
         fd, tmp = tempfile.mkstemp(".svg", text=True)
         try:
             self.document.write(tmp)
@@ -151,7 +150,6 @@ class InkEffect(inkex.Effect):
                         cmd += " --select="+tid
                         cmd += " --verb="+tverb
             cmd += " --verb=FileSave --verb=FileClose"
-            err_file.write('CMD: ' + cmd)
             try:
                 from subprocess import Popen, PIPE
                 p = Popen(cmd, shell=True, stdout=PIPE, stderr=PIPE)
@@ -170,6 +168,5 @@ class InkEffect(inkex.Effect):
             self.getselected()
             self.getdocids()
         finally:
-            err_file.close()
             os.close(fd)
             os.remove(tmp)
