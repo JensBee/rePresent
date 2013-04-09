@@ -41,11 +41,6 @@ var ENTER_KEY = 13; // next slide
 var SPACE_KEY = 32;
 var ESCAPE_KEY = 27;
 
-// Presentation modes.
-var SLIDE_MODE = 1;
-var INDEX_MODE = 2;
-var DRAWING_MODE = 3;
-
 // Mouse handler actions.
 var MOUSE_UP = 1;
 var MOUSE_DOWN = 2;
@@ -61,7 +56,6 @@ var STATE_END = -2;
 var slides = new Array();
 
 // Initialisation.
-var currentMode = SLIDE_MODE;
 var masterSlide = null;
 var activeSlide = 0;
 var activeEffect = 0;
@@ -71,12 +65,7 @@ var processingEffect = false;
 var transCounter = 0;
 var effectArray = 0;
 
-// Initialise char and key code dictionaries.
-var charCodeDictionary = getDefaultCharCodeDictionary();
-var keyCodeDictionary = getDefaultKeyCodeDictionary();
-
-// Initialise mouse handler dictionary.
-var mouseHandlerDictionary = getDefaultMouseHandlerDictionary();
+// CUT
 
 var progress_bar_visible = false;
 var timer_elapsed = 0;
@@ -100,10 +89,12 @@ var path_paint_width = path_width;
 
 // Main class
 var Represent = function() {
+	self = this;
+	
 	/****************************************
 	** DOM functions
 	****************************************/
-	this.dom = (function() {
+	this.dom = (function(parent) {
 		var self = {};
 			
 		self.node = {
@@ -228,15 +219,18 @@ var Represent = function() {
 			}
 		};
 		
-		setBackgroundColor();
-		setupPresentationLayer();
+		self.initialize = function() {
+			setBackgroundColor();
+			setupPresentationLayer();
+		};
+
 		return self;
-	})();
+	})(this);
 
 	/****************************************
 	** UI functions
 	****************************************/
-	this.ui = (function() {
+	this.ui = (function(parent) {
 		var self = {};
 		self.width = undefined;
 		self.height = undefined;
@@ -255,17 +249,17 @@ var Represent = function() {
 			rect_progress_bar.setAttribute("style", "marker: none; fill: rgb(128, 128, 128); stroke: none;");
 			rect_progress_bar.setAttribute("id", "rect_progress_bar");
 			rect_progress_bar.setAttribute("x", 0);
-			rect_progress_bar.setAttribute("y", 0.99 * rps.ui.height);
+			rect_progress_bar.setAttribute("y", 0.99 * self.height);
 			rect_progress_bar.setAttribute("width", 0);
-			rect_progress_bar.setAttribute("height", 0.01 * rps.ui.height);
+			rect_progress_bar.setAttribute("height", 0.01 * self.height);
 			g.appendChild(rect_progress_bar);
 
 			var circle_timer_indicator = document.createElementNS(NSS['svg'], "circle");
 			circle_timer_indicator.setAttribute("style", "marker:none; fill:rgb(255, 0, 0); stroke:none; display:none;");
 			circle_timer_indicator.setAttribute("id", "circle_timer_indicator");
-			circle_timer_indicator.setAttribute("cx", 0.005 * rps.ui.height);
-			circle_timer_indicator.setAttribute("cy", 0.995 * rps.ui.height);
-			circle_timer_indicator.setAttribute("r", 0.005 * rps.ui.height);
+			circle_timer_indicator.setAttribute("cx", 0.005 * self.height);
+			circle_timer_indicator.setAttribute("cy", 0.995 * self.height);
+			circle_timer_indicator.setAttribute("r", 0.005 * self.height);
 			g.appendChild(circle_timer_indicator);
 			
 			parentNode.appendChild(g);
@@ -280,13 +274,19 @@ var Represent = function() {
 		}
 
 		return self;
-	})();
+	})(this);
 	
 	/****************************************
 	** Slideshow functions
 	****************************************/
-	this.stage = (function() {
-		self = {};
+	this.stage = (function(parent) {		
+		var self = {};
+		self.modes = {
+			'slide':1,
+			'index':2,
+			'draw':3
+		};
+		self.mode = self.modes.slide;
 		
 		/** Function to change between slides.
 		*
@@ -322,7 +322,7 @@ var Represent = function() {
 			lastFrameTime = null;
 			
 			// do the appear effect
-			var suspendHandle = rps.dom.getRoot().suspendRedraw(200);
+			var suspendHandle = parent.dom.getRoot().suspendRedraw(200);
 			for (var counter = 0; counter < effectArray.length; counter++) {
 				var element = effectArray[counter]["element"];
 				var theDir = parseInt(effectArray[counter]["dir"]) * dir;
@@ -335,12 +335,46 @@ var Represent = function() {
 				}	
 			}
 
-			rps.dom.getRoot().unsuspendRedraw(suspendHandle);
-			rps.dom.getRoot().forceRedraw();
+			parent.dom.getRoot().unsuspendRedraw(suspendHandle);
+			parent.dom.getRoot().forceRedraw();
 
 			window.location.hash = (activeSlide + 1) + '_' + activeEffect;
 			processingEffect = false;
 		};
+		
+		/** Function to toggle between index and slide mode. */
+		self.toggleIndex = function() {
+			var suspendHandle = parent.dom.getRoot().suspendRedraw(500);
+
+			if (self.mode == self.modes.slide) {
+				hideProgressBar();		
+				INDEX_OFFSET = -1;
+				indexSetPageSlide(activeSlide);
+				self.mode = self.modes.index;
+			} else if (self.mode == self.modes.index) {
+				for (var counter = 0; counter < slides.length; counter++) {
+					slides[counter]["element"].setAttribute("transform","scale(1)");
+					if (counter == activeSlide)	{
+						slides[counter]["element"].style.display = "inherit";
+						slides[counter]["element"].setAttribute("opacity",1);
+						activeEffect = 0;
+					} else {
+						slides[counter]["element"].setAttribute("opacity",0);
+						slides[counter]["element"].style.display = "none";
+					}
+				}
+				self.mode = self.modes.slide;
+				setSlideToState(activeSlide);
+				setProgressBarValue(activeSlide);
+
+				if (progress_bar_visible) {
+					showProgressBar();
+				}
+			}
+
+			parent.dom.getRoot().unsuspendRedraw(suspendHandle);
+			parent.dom.getRoot().forceRedraw();
+		}
 		
 		self.nextSlide = function() {
 			self.changeSlide(1);
@@ -349,20 +383,28 @@ var Represent = function() {
 		self.prevSlide = function() {
 			self.changeSlide(-1);
 		};
+		
+		self.initialize = function() {
+			// make the presentation scaleable.
+			if (parent.dom.getRoot().getAttribute("viewBox")) {
+				parent.ui.setWidth(parent.dom.getRoot().viewBox.animVal.width);
+				parent.ui.setHeight(parent.dom.getRoot().viewBox.animVal.height);
+			} else {
+				parent.ui.setHeight(parseFloat(parent.dom.getRoot().getAttribute("height")));
+				parent.ui.setWidth(parseFloat(parent.dom.getRoot().getAttribute("width")));
+				parent.dom.getRoot().setAttribute("viewBox", "0 0 " + parent.ui.width + " " + parent.ui.height);
+			}
+		};
 			
 		return self;
-	})();
+	})(this);
 	
 	this.initialize = function() {
-		// make the presentation scaleable.
-		if (this.dom.getRoot().getAttribute("viewBox")) {
-			this.ui.setWidth(this.dom.getRoot().viewBox.animVal.width);
-			this.ui.setHeight(this.dom.getRoot().viewBox.animVal.height);
-		} else {
-			this.ui.setHeight(parseFloat(this.dom.getRoot().getAttribute("height")));
-			this.ui.setWidth(parseFloat(this.dom.getRoot().getAttribute("width")));
-			this.dom.getRoot().setAttribute("viewBox", "0 0 " + this.ui.width + " " + this.ui.height);
-		}
+		
+		// order matters!
+		this.dom.initialize();
+		this.stage.initialize();
+		
 		this.dom.getRoot().setAttribute("width", "100%");
 		this.dom.getRoot().setAttribute("height", "100%");
 		
@@ -377,6 +419,14 @@ var Represent = function() {
 // Start rePresent
 var rps = new Represent();
 rps.initialize();
+
+// Initialise char and key code dictionaries.
+var charCodeDictionary = getDefaultCharCodeDictionary();
+var keyCodeDictionary = getDefaultKeyCodeDictionary();
+
+// Initialise mouse handler dictionary.
+var mouseHandlerDictionary = getDefaultMouseHandlerDictionary();
+
 
 /** Initialisation function.
  *  The whole presentation is set-up in this function.
@@ -444,7 +494,7 @@ function jessyInkInit() {
 			viewGroup.appendChild(transformGroup);
 			slides[counter]["viewGroup"] = node.appendChild(viewGroup);
 
-			node.setAttribute("onmouseover", "if ((currentMode == INDEX_MODE) && ( activeSlide != " + counter + ")) { indexSetActiveSlide(" + counter + "); };");
+			node.setAttribute("onmouseover", "if ((rps.stage.mode == rps.stage.modes.index) && ( activeSlide != " + counter + ")) { indexSetActiveSlide(" + counter + "); };");
 
 			// Set visibility for initial state.
 			if (counter == activeSlide) {
@@ -461,51 +511,6 @@ function jessyInkInit() {
 	hideProgressBar();
 	setProgressBarValue(activeSlide);
 	setSlideToState(activeSlide);
-}
-
-/** Function to toggle between index and slide mode.
-*/
-function toggleSlideIndex()
-{
-	var suspendHandle = rps.dom.getRoot().suspendRedraw(500);
-
-	if (currentMode == SLIDE_MODE)
-	{
-		hideProgressBar();		
-		INDEX_OFFSET = -1;
-		indexSetPageSlide(activeSlide);
-		currentMode = INDEX_MODE;
-	}
-	else if (currentMode == INDEX_MODE)
-	{
-		for (var counter = 0; counter < slides.length; counter++)
-		{
-			slides[counter]["element"].setAttribute("transform","scale(1)");
-
-			if (counter == activeSlide)
-			{
-				slides[counter]["element"].style.display = "inherit";
-				slides[counter]["element"].setAttribute("opacity",1);
-				activeEffect = 0;
-			}
-			else
-			{
-				slides[counter]["element"].setAttribute("opacity",0);
-				slides[counter]["element"].style.display = "none";
-			}
-		}
-		currentMode = SLIDE_MODE;
-		setSlideToState(activeSlide);
-		setProgressBarValue(activeSlide);
-
-		if (progress_bar_visible)
-		{
-			showProgressBar();
-		}
-	}
-
-	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
-	rps.dom.getRoot().forceRedraw();
 }
 
 /** Function to display the index sheet.
@@ -638,8 +643,8 @@ function keydown(e)
 
 	code = e.keyCode || e.charCode;
 
-	if (!processingEffect && keyCodeDictionary[currentMode] && keyCodeDictionary[currentMode][code])
-		return keyCodeDictionary[currentMode][code]();
+	if (!processingEffect && keyCodeDictionary[rps.stage.mode] && keyCodeDictionary[rps.stage.mode][code])
+		return keyCodeDictionary[rps.stage.mode][code]();
 	else
 		document.onkeypress = keypress;
 }
@@ -659,8 +664,8 @@ function keypress(e)
 
 	str = String.fromCharCode(e.keyCode || e.charCode);
 
-	if (!processingEffect && charCodeDictionary[currentMode] && charCodeDictionary[currentMode][str])
-		return charCodeDictionary[currentMode][str]();
+	if (!processingEffect && charCodeDictionary[rps.stage.mode] && charCodeDictionary[rps.stage.mode][str])
+		return charCodeDictionary[rps.stage.mode][str]();
 }
 
 /** Function to supply the default char code dictionary.
@@ -671,39 +676,39 @@ function getDefaultCharCodeDictionary()
 {
 	var charCodeDict = new Object();
 
-	charCodeDict[SLIDE_MODE] = new Object();
-	charCodeDict[INDEX_MODE] = new Object();
-	charCodeDict[DRAWING_MODE] = new Object();
+	charCodeDict[rps.stage.modes.slide] = new Object();
+	charCodeDict[rps.stage.modes.index] = new Object();
+	charCodeDict[rps.stage.modes.draw] = new Object();
 
-	charCodeDict[SLIDE_MODE]["i"] = function () { return toggleSlideIndex(); };
-	charCodeDict[SLIDE_MODE]["d"] = function () { return slideSwitchToDrawingMode(); };
-	charCodeDict[SLIDE_MODE]["D"] = function () { return slideQueryDuration(); };	
-	charCodeDict[SLIDE_MODE]["p"] = function () { return slideToggleProgressBarVisibility(); };
-	charCodeDict[SLIDE_MODE]["t"] = function () { return slideResetTimer(); };
+	charCodeDict[rps.stage.modes.slide]["i"] = function () { return rps.stage.toggleIndex(); };
+	charCodeDict[rps.stage.modes.slide]["d"] = function () { return slideSwitchToDrawingMode(); };
+	charCodeDict[rps.stage.modes.slide]["D"] = function () { return slideQueryDuration(); };	
+	charCodeDict[rps.stage.modes.slide]["p"] = function () { return slideToggleProgressBarVisibility(); };
+	charCodeDict[rps.stage.modes.slide]["t"] = function () { return slideResetTimer(); };
 
-	charCodeDict[DRAWING_MODE]["d"] = function () { return drawingSwitchToSlideMode(); };
-	charCodeDict[DRAWING_MODE]["0"] = function () { return drawingResetPathWidth(); };
-	charCodeDict[DRAWING_MODE]["1"] = function () { return drawingSetPathWidth(1.0); };
-	charCodeDict[DRAWING_MODE]["3"] = function () { return drawingSetPathWidth(3.0); };
-	charCodeDict[DRAWING_MODE]["5"] = function () { return drawingSetPathWidth(5.0); };
-	charCodeDict[DRAWING_MODE]["7"] = function () { return drawingSetPathWidth(7.0); };
-	charCodeDict[DRAWING_MODE]["9"] = function () { return drawingSetPathWidth(9.0); };
-	charCodeDict[DRAWING_MODE]["b"] = function () { return drawingSetPathColour("blue"); };
-	charCodeDict[DRAWING_MODE]["c"] = function () { return drawingSetPathColour("cyan"); };
-	charCodeDict[DRAWING_MODE]["g"] = function () { return drawingSetPathColour("green"); };
-	charCodeDict[DRAWING_MODE]["k"] = function () { return drawingSetPathColour("black"); };
-	charCodeDict[DRAWING_MODE]["m"] = function () { return drawingSetPathColour("magenta"); };
-	charCodeDict[DRAWING_MODE]["o"] = function () { return drawingSetPathColour("orange"); };
-	charCodeDict[DRAWING_MODE]["r"] = function () { return drawingSetPathColour("red"); };
-	charCodeDict[DRAWING_MODE]["w"] = function () { return drawingSetPathColour("white"); };
-	charCodeDict[DRAWING_MODE]["y"] = function () { return drawingSetPathColour("yellow"); };
-	charCodeDict[DRAWING_MODE]["z"] = function () { return drawingUndo(); };
+	charCodeDict[rps.stage.modes.draw]["d"] = function () { return drawingSwitchToSlideMode(); };
+	charCodeDict[rps.stage.modes.draw]["0"] = function () { return drawingResetPathWidth(); };
+	charCodeDict[rps.stage.modes.draw]["1"] = function () { return drawingSetPathWidth(1.0); };
+	charCodeDict[rps.stage.modes.draw]["3"] = function () { return drawingSetPathWidth(3.0); };
+	charCodeDict[rps.stage.modes.draw]["5"] = function () { return drawingSetPathWidth(5.0); };
+	charCodeDict[rps.stage.modes.draw]["7"] = function () { return drawingSetPathWidth(7.0); };
+	charCodeDict[rps.stage.modes.draw]["9"] = function () { return drawingSetPathWidth(9.0); };
+	charCodeDict[rps.stage.modes.draw]["b"] = function () { return drawingSetPathColour("blue"); };
+	charCodeDict[rps.stage.modes.draw]["c"] = function () { return drawingSetPathColour("cyan"); };
+	charCodeDict[rps.stage.modes.draw]["g"] = function () { return drawingSetPathColour("green"); };
+	charCodeDict[rps.stage.modes.draw]["k"] = function () { return drawingSetPathColour("black"); };
+	charCodeDict[rps.stage.modes.draw]["m"] = function () { return drawingSetPathColour("magenta"); };
+	charCodeDict[rps.stage.modes.draw]["o"] = function () { return drawingSetPathColour("orange"); };
+	charCodeDict[rps.stage.modes.draw]["r"] = function () { return drawingSetPathColour("red"); };
+	charCodeDict[rps.stage.modes.draw]["w"] = function () { return drawingSetPathColour("white"); };
+	charCodeDict[rps.stage.modes.draw]["y"] = function () { return drawingSetPathColour("yellow"); };
+	charCodeDict[rps.stage.modes.draw]["z"] = function () { return drawingUndo(); };
 
-	charCodeDict[INDEX_MODE]["i"] = function () { return toggleSlideIndex(); };
-	charCodeDict[INDEX_MODE]["-"] = function () { return indexDecreaseNumberOfColumns(); };
-	charCodeDict[INDEX_MODE]["="] = function () { return indexIncreaseNumberOfColumns(); };
-	charCodeDict[INDEX_MODE]["+"] = function () { return indexIncreaseNumberOfColumns(); };
-	charCodeDict[INDEX_MODE]["0"] = function () { return indexResetNumberOfColumns(); };
+	charCodeDict[rps.stage.modes.index]["i"] = function () { return rps.stage.toggleIndex(); };
+	charCodeDict[rps.stage.modes.index]["-"] = function () { return indexDecreaseNumberOfColumns(); };
+	charCodeDict[rps.stage.modes.index]["="] = function () { return indexIncreaseNumberOfColumns(); };
+	charCodeDict[rps.stage.modes.index]["+"] = function () { return indexIncreaseNumberOfColumns(); };
+	charCodeDict[rps.stage.modes.index]["0"] = function () { return indexResetNumberOfColumns(); };
 
 	return charCodeDict;
 }
@@ -716,31 +721,31 @@ function getDefaultKeyCodeDictionary()
 {
 	var keyCodeDict = new Object();
 
-	keyCodeDict[SLIDE_MODE] = new Object();
-	keyCodeDict[INDEX_MODE] = new Object();
-	keyCodeDict[DRAWING_MODE] = new Object();
+	keyCodeDict[rps.stage.modes.slide] = new Object();
+	keyCodeDict[rps.stage.modes.index] = new Object();
+	keyCodeDict[rps.stage.modes.draw] = new Object();
 
-	keyCodeDict[SLIDE_MODE][LEFT_KEY] = function() { return rps.stage.changeSlide(-1); };
-	keyCodeDict[SLIDE_MODE][RIGHT_KEY] = function() { return rps.stage.changeSlide(1); };
-	keyCodeDict[SLIDE_MODE][UP_KEY] = function() { return rps.stage.changeSlide(-1); };
-	keyCodeDict[SLIDE_MODE][DOWN_KEY] = function() { return rps.stage.changeSlide(1); };
-	keyCodeDict[SLIDE_MODE][PAGE_UP_KEY] = function() { return rps.stage.changeSlide(-1); };
-	keyCodeDict[SLIDE_MODE][PAGE_DOWN_KEY] = function() { return rps.stage.changeSlide(1); };
-	keyCodeDict[SLIDE_MODE][HOME_KEY] = function() { return slideSetActiveSlide(0); };
-	keyCodeDict[SLIDE_MODE][END_KEY] = function() { return slideSetActiveSlide(slides.length - 1); };
-	keyCodeDict[SLIDE_MODE][SPACE_KEY] = function() { return rps.stage.changeSlide(1); };
+	keyCodeDict[rps.stage.modes.slide][LEFT_KEY] = function() { return rps.stage.changeSlide(-1); };
+	keyCodeDict[rps.stage.modes.slide][RIGHT_KEY] = function() { return rps.stage.changeSlide(1); };
+	keyCodeDict[rps.stage.modes.slide][UP_KEY] = function() { return rps.stage.changeSlide(-1); };
+	keyCodeDict[rps.stage.modes.slide][DOWN_KEY] = function() { return rps.stage.changeSlide(1); };
+	keyCodeDict[rps.stage.modes.slide][PAGE_UP_KEY] = function() { return rps.stage.changeSlide(-1); };
+	keyCodeDict[rps.stage.modes.slide][PAGE_DOWN_KEY] = function() { return rps.stage.changeSlide(1); };
+	keyCodeDict[rps.stage.modes.slide][HOME_KEY] = function() { return slideSetActiveSlide(0); };
+	keyCodeDict[rps.stage.modes.slide][END_KEY] = function() { return slideSetActiveSlide(slides.length - 1); };
+	keyCodeDict[rps.stage.modes.slide][SPACE_KEY] = function() { return rps.stage.changeSlide(1); };
 
-	keyCodeDict[INDEX_MODE][LEFT_KEY] = function() { return indexSetPageSlide(activeSlide - 1); };
-	keyCodeDict[INDEX_MODE][RIGHT_KEY] = function() { return indexSetPageSlide(activeSlide + 1); };
-	keyCodeDict[INDEX_MODE][UP_KEY] = function() { return indexSetPageSlide(activeSlide - INDEX_COLUMNS); };
-	keyCodeDict[INDEX_MODE][DOWN_KEY] = function() { return indexSetPageSlide(activeSlide + INDEX_COLUMNS); };
-	keyCodeDict[INDEX_MODE][PAGE_UP_KEY] = function() { return indexSetPageSlide(activeSlide - INDEX_COLUMNS * INDEX_COLUMNS); };
-	keyCodeDict[INDEX_MODE][PAGE_DOWN_KEY] = function() { return indexSetPageSlide(activeSlide + INDEX_COLUMNS * INDEX_COLUMNS); };
-	keyCodeDict[INDEX_MODE][HOME_KEY] = function() { return indexSetPageSlide(0); };
-	keyCodeDict[INDEX_MODE][END_KEY] = function() { return indexSetPageSlide(slides.length - 1); };
-	keyCodeDict[INDEX_MODE][ENTER_KEY] = function() { return toggleSlideIndex(); };
+	keyCodeDict[rps.stage.modes.index][LEFT_KEY] = function() { return indexSetPageSlide(activeSlide - 1); };
+	keyCodeDict[rps.stage.modes.index][RIGHT_KEY] = function() { return indexSetPageSlide(activeSlide + 1); };
+	keyCodeDict[rps.stage.modes.index][UP_KEY] = function() { return indexSetPageSlide(activeSlide - INDEX_COLUMNS); };
+	keyCodeDict[rps.stage.modes.index][DOWN_KEY] = function() { return indexSetPageSlide(activeSlide + INDEX_COLUMNS); };
+	keyCodeDict[rps.stage.modes.index][PAGE_UP_KEY] = function() { return indexSetPageSlide(activeSlide - INDEX_COLUMNS * INDEX_COLUMNS); };
+	keyCodeDict[rps.stage.modes.index][PAGE_DOWN_KEY] = function() { return indexSetPageSlide(activeSlide + INDEX_COLUMNS * INDEX_COLUMNS); };
+	keyCodeDict[rps.stage.modes.index][HOME_KEY] = function() { return indexSetPageSlide(0); };
+	keyCodeDict[rps.stage.modes.index][END_KEY] = function() { return indexSetPageSlide(slides.length - 1); };
+	keyCodeDict[rps.stage.modes.index][ENTER_KEY] = function() { return rps.stage.toggleIndex(); };
 
-	keyCodeDict[DRAWING_MODE][ESCAPE_KEY] = function () { return drawingSwitchToSlideMode(); };
+	keyCodeDict[rps.stage.modes.draw][ESCAPE_KEY] = function () { return drawingSwitchToSlideMode(); };
 
 	return keyCodeDict;
 }
@@ -757,9 +762,9 @@ function mouseHandlerDispatch(evnt, action)
 
 	var retVal = true;
 
-	if (!processingEffect && mouseHandlerDictionary[currentMode] && mouseHandlerDictionary[currentMode][action])
+	if (!processingEffect && mouseHandlerDictionary[rps.stage.mode] && mouseHandlerDictionary[rps.stage.mode][action])
 	{
-		var subRetVal = mouseHandlerDictionary[currentMode][action](evnt);
+		var subRetVal = mouseHandlerDictionary[rps.stage.mode][action](evnt);
 
 		if (subRetVal != null && subRetVal != undefined)
 			retVal = subRetVal;
@@ -795,18 +800,18 @@ function getDefaultMouseHandlerDictionary()
 {
 	var mouseHandlerDict = new Object();
 
-	mouseHandlerDict[SLIDE_MODE] = new Object();
-	mouseHandlerDict[INDEX_MODE] = new Object();
-	mouseHandlerDict[DRAWING_MODE] = new Object();
+	mouseHandlerDict[rps.stage.modes.slide] = new Object();
+	mouseHandlerDict[rps.stage.modes.index] = new Object();
+	mouseHandlerDict[rps.stage.modes.draw] = new Object();
 
-	mouseHandlerDict[SLIDE_MODE][MOUSE_DOWN] = function(evnt) { return rps.stage.changeSlide(1); };
-	mouseHandlerDict[SLIDE_MODE][MOUSE_WHEEL] = function(evnt) { return slideMousewheel(evnt); };
+	mouseHandlerDict[rps.stage.modes.slide][MOUSE_DOWN] = function(evnt) { return rps.stage.changeSlide(1); };
+	mouseHandlerDict[rps.stage.modes.slide][MOUSE_WHEEL] = function(evnt) { return slideMousewheel(evnt); };
 
-	mouseHandlerDict[INDEX_MODE][MOUSE_DOWN] = function(evnt) { return toggleSlideIndex(); };
+	mouseHandlerDict[rps.stage.modes.index][MOUSE_DOWN] = function(evnt) { return rps.stage.toggleIndex(); };
 
-	mouseHandlerDict[DRAWING_MODE][MOUSE_DOWN] = function(evnt) { return drawingMousedown(evnt); };
-	mouseHandlerDict[DRAWING_MODE][MOUSE_UP] = function(evnt) { return drawingMouseup(evnt); };
-	mouseHandlerDict[DRAWING_MODE][MOUSE_MOVE] = function(evnt) { return drawingMousemove(evnt); };
+	mouseHandlerDict[rps.stage.modes.draw][MOUSE_DOWN] = function(evnt) { return drawingMousedown(evnt); };
+	mouseHandlerDict[rps.stage.modes.draw][MOUSE_UP] = function(evnt) { return drawingMouseup(evnt); };
+	mouseHandlerDict[rps.stage.modes.draw][MOUSE_MOVE] = function(evnt) { return drawingMousemove(evnt); };
 
 	return mouseHandlerDict;
 }
@@ -815,7 +820,7 @@ function getDefaultMouseHandlerDictionary()
 */
 function slideSwitchToDrawingMode()
 {
-	currentMode = DRAWING_MODE;
+	rps.stage.mode = rps.stage.modes.draw;
 
 	var tempDict;
 
@@ -832,7 +837,7 @@ function slideSwitchToDrawingMode()
 */
 function drawingSwitchToSlideMode()
 {
-	currentMode = SLIDE_MODE;
+	rps.stage.mode = rps.stage.modes.slide;
 
 	var tempDict;
 
@@ -952,20 +957,6 @@ function slideResetTimer()
 {
 	timer_start = timer_elapsed;
 	updateTimer();
-}
-
-/** Convenience function to pad a string with zero in front up to a certain length.
- */
-function padString(str, len)
-{
-	var outStr = str;
-
-	while (outStr.length < len)
-	{
-		outStr = '0' + outStr;
-	}
-
-	return outStr;
 }
 
 /** Function to undo last drawing operation.
