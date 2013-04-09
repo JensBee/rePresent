@@ -293,6 +293,12 @@ var Represent = function() {
 		*  @param dir direction (1 = forwards, -1 = backwards)
 		*/
 		self.changeSlide = function(dir) {
+			var nextSlide = activeSlide + dir;
+			
+			if (nextSlide > (slides.length -1) || nextSlide < 0) {
+				return;
+			}
+			
 			processingEffect = true;
 			effectArray = [ {
 					'dir': (dir == 1 ? -1 : 1),
@@ -311,16 +317,29 @@ var Represent = function() {
 			setProgressBarValue(activeSlide);
 			activeEffect = 0;
 
-			if (dir == -1) {
-				setSlideToState(activeSlide, STATE_END);
-			} else {
-				setSlideToState(activeSlide, STATE_START);
-			}
-
 			transCounter = 0;
 			startTime = (new Date()).getTime();
 			lastFrameTime = null;
-			effect(dir);
+			
+			// do the appear effect
+			var suspendHandle = rps.dom.getRoot().suspendRedraw(200);
+			for (var counter = 0; counter < effectArray.length; counter++) {
+				var element = effectArray[counter]["element"];
+				var theDir = parseInt(effectArray[counter]["dir"]) * dir;
+				if (theDir == 1) {
+					element.style.display = "inherit";
+					element.setAttribute("opacity",1);
+				} else if (theDir == -1) {
+					element.style.display = "none";
+					element.setAttribute("opacity",0);
+				}	
+			}
+
+			rps.dom.getRoot().unsuspendRedraw(suspendHandle);
+			rps.dom.getRoot().forceRedraw();
+
+			window.location.hash = (activeSlide + 1) + '_' + activeEffect;
+			processingEffect = false;
 		};
 		
 		self.nextSlide = function() {
@@ -370,7 +389,7 @@ function jessyInkInit() {
 	// Set start slide.
 	var hashObj = new LocationHash(window.location.hash);
 	activeSlide = hashObj.slideNumber;
-	activeEffect = hashObj.effectNumber;
+	//activeEffect = hashObj.effectNumber;
 	if (activeSlide < 0) {
 		activeSlide = 0;
 	} 
@@ -439,93 +458,9 @@ function jessyInkInit() {
 		}
 	}
 
-	activeEffect = 0;
 	hideProgressBar();
 	setProgressBarValue(activeSlide);
-	setSlideToState(activeSlide, activeEffect);
-}
-
-/** Convenience function to get an element depending on whether it has a property with a particular name.
- *	This function emulates some dearly missed XPath functionality.
- *
- *  @param node the node
- *  @param namespace namespace of the attribute
- *  @param name attribute name
- */
-function getElementsByPropertyNS(node, namespace, name)
-{
-	var elems = new Array();
-
-	if (node.getAttributeNS(namespace, name))
-		elems.push(node.getAttribute("id"));
-
-	for (var counter = 0; counter < node.childNodes.length; counter++)
-	{
-		if (node.childNodes[counter].nodeType == 1)
-			elems = elems.concat(getElementsByPropertyNS(node.childNodes[counter], namespace, name));
-	}
-
-	return elems;
-}
-
-/** Function to dispatch the next effect, if there is none left, change the slide.
- *
- *  @param dir direction of the change (1 = forwards, -1 = backwards)
- */
-function dispatchEffects(dir)
-{
-	if (slides[activeSlide]["effects"] && (((dir == 1) && (activeEffect < slides[activeSlide]["effects"].length)) || ((dir == -1) && (activeEffect > 0))))
-	{
-		processingEffect = true;
-
-		if (dir == 1)
-		{
-			effectArray = slides[activeSlide]["effects"][activeEffect];
-			activeEffect += dir;
-		}
-		else if (dir == -1)
-		{
-			activeEffect += dir;
-			effectArray = slides[activeSlide]["effects"][activeEffect];
-		}
-
-		transCounter = 0;
-		startTime = (new Date()).getTime();
-		lastFrameTime = null;
-		effect(dir);
-	}
-	else if (((dir == 1) && (activeSlide < (slides.length - 1))) || (((dir == -1) && (activeSlide > 0))))
-	{
-		rps.stage.changeSlide(dir);
-	}
-}
-
-/** Function to skip effects and directly either put the slide into start or end state or change slides.
- *
- *  @param dir direction of the change (1 = forwards, -1 = backwards)
- */
-function skipEffects(dir)
-{
-	if (slides[activeSlide]["effects"] && (((dir == 1) && (activeEffect < slides[activeSlide]["effects"].length)) || ((dir == -1) && (activeEffect > 0))))
-	{
-		processingEffect = true;
-
-		if (slides[activeSlide]["effects"] && (dir == 1))
-			activeEffect = slides[activeSlide]["effects"].length;
-		else
-			activeEffect = 0;
-
-		if (dir == 1)
-			setSlideToState(activeSlide, STATE_END);
-		else
-			setSlideToState(activeSlide, STATE_START);
-
-		processingEffect = false;
-	}
-	else if (((dir == 1) && (activeSlide < (slides.length - 1))) || (((dir == -1) && (activeSlide > 0))))
-	{
-		rps.stage.changeSlide(dir);
-	}
+	setSlideToState(activeSlide);
 }
 
 /** Function to toggle between index and slide mode.
@@ -560,7 +495,7 @@ function toggleSlideIndex()
 			}
 		}
 		currentMode = SLIDE_MODE;
-		setSlideToState(activeSlide, STATE_START);
+		setSlideToState(activeSlide);
 		setProgressBarValue(activeSlide);
 
 		if (progress_bar_visible)
@@ -571,57 +506,6 @@ function toggleSlideIndex()
 
 	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
 	rps.dom.getRoot().forceRedraw();
-}
-
-/** Function to run an effect.
- *
- *  @param dir direction in which to play the effect (1 = forwards, -1 = backwards)
- */
-function effect(dir)
-{
-	var done = true;
-
-	var suspendHandle = rps.dom.getRoot().suspendRedraw(200);
-
-	for (var counter = 0; counter < effectArray.length; counter++)
-	{
-		if (effectArray[counter]["effect"] == "fade")
-			done &= fade(parseInt(effectArray[counter]["dir"]) * dir, effectArray[counter]["element"], transCounter, effectArray[counter]["options"]);
-		else if (effectArray[counter]["effect"] == "appear")
-			done &= appear(parseInt(effectArray[counter]["dir"]) * dir, effectArray[counter]["element"], transCounter, effectArray[counter]["options"]);
-		else if (effectArray[counter]["effect"] == "pop")
-			done &= pop(parseInt(effectArray[counter]["dir"]) * dir, effectArray[counter]["element"], transCounter, effectArray[counter]["options"]);
-		else if (effectArray[counter]["effect"] == "view")
-			done &= view(parseInt(effectArray[counter]["dir"]) * dir, effectArray[counter]["element"], transCounter, effectArray[counter]["options"]);
-	}
-
-	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
-	rps.dom.getRoot().forceRedraw();
-
-	if (!done)
-	{
-		var currentTime = (new Date()).getTime();
-		var timeDiff = 1;
-
-		transCounter = currentTime - startTime;
-
-		if (lastFrameTime != null)
-		{
-			timeDiff = timeStep - (currentTime - lastFrameTime);
-
-			if (timeDiff <= 0)
-				timeDiff = 1;
-		}
-
-		lastFrameTime = currentTime;
-
-		window.setTimeout("effect(" + dir + ")", timeDiff);
-	}
-	else
-	{
-		window.location.hash = (activeSlide + 1) + '_' + activeEffect;
-		processingEffect = false;
-	}
 }
 
 /** Function to display the index sheet.
@@ -655,7 +539,7 @@ function displayIndex(offsetNumber)
 			slides[counter]["element"].setAttribute("opacity",0.5);
 		}
 
-		setSlideToState(counter, STATE_END);
+		setSlideToState(counter);
 	}
 
 	//do we need to save the current offset?
@@ -679,7 +563,7 @@ function slideSetActiveSlide(nbr)
 
 	activeSlide = parseInt(nbr);
 
-	setSlideToState(activeSlide, STATE_START);
+	setSlideToState(activeSlide);
 	slides[activeSlide]["element"].style.display = "inherit";
 	slides[activeSlide]["element"].setAttribute("opacity",1);
 
@@ -796,7 +680,6 @@ function getDefaultCharCodeDictionary()
 	charCodeDict[SLIDE_MODE]["D"] = function () { return slideQueryDuration(); };	
 	charCodeDict[SLIDE_MODE]["p"] = function () { return slideToggleProgressBarVisibility(); };
 	charCodeDict[SLIDE_MODE]["t"] = function () { return slideResetTimer(); };
-	charCodeDict[SLIDE_MODE]["e"] = function () { return slideUpdateExportLayer(); };
 
 	charCodeDict[DRAWING_MODE]["d"] = function () { return drawingSwitchToSlideMode(); };
 	charCodeDict[DRAWING_MODE]["0"] = function () { return drawingResetPathWidth(); };
@@ -837,15 +720,15 @@ function getDefaultKeyCodeDictionary()
 	keyCodeDict[INDEX_MODE] = new Object();
 	keyCodeDict[DRAWING_MODE] = new Object();
 
-	keyCodeDict[SLIDE_MODE][LEFT_KEY] = function() { return dispatchEffects(-1); };
-	keyCodeDict[SLIDE_MODE][RIGHT_KEY] = function() { return dispatchEffects(1); };
-	keyCodeDict[SLIDE_MODE][UP_KEY] = function() { return skipEffects(-1); };
-	keyCodeDict[SLIDE_MODE][DOWN_KEY] = function() { return skipEffects(1); };
-	keyCodeDict[SLIDE_MODE][PAGE_UP_KEY] = function() { return dispatchEffects(-1); };
-	keyCodeDict[SLIDE_MODE][PAGE_DOWN_KEY] = function() { return dispatchEffects(1); };
+	keyCodeDict[SLIDE_MODE][LEFT_KEY] = function() { return rps.stage.changeSlide(-1); };
+	keyCodeDict[SLIDE_MODE][RIGHT_KEY] = function() { return rps.stage.changeSlide(1); };
+	keyCodeDict[SLIDE_MODE][UP_KEY] = function() { return rps.stage.changeSlide(-1); };
+	keyCodeDict[SLIDE_MODE][DOWN_KEY] = function() { return rps.stage.changeSlide(1); };
+	keyCodeDict[SLIDE_MODE][PAGE_UP_KEY] = function() { return rps.stage.changeSlide(-1); };
+	keyCodeDict[SLIDE_MODE][PAGE_DOWN_KEY] = function() { return rps.stage.changeSlide(1); };
 	keyCodeDict[SLIDE_MODE][HOME_KEY] = function() { return slideSetActiveSlide(0); };
 	keyCodeDict[SLIDE_MODE][END_KEY] = function() { return slideSetActiveSlide(slides.length - 1); };
-	keyCodeDict[SLIDE_MODE][SPACE_KEY] = function() { return dispatchEffects(1); };
+	keyCodeDict[SLIDE_MODE][SPACE_KEY] = function() { return rps.stage.changeSlide(1); };
 
 	keyCodeDict[INDEX_MODE][LEFT_KEY] = function() { return indexSetPageSlide(activeSlide - 1); };
 	keyCodeDict[INDEX_MODE][RIGHT_KEY] = function() { return indexSetPageSlide(activeSlide + 1); };
@@ -916,7 +799,7 @@ function getDefaultMouseHandlerDictionary()
 	mouseHandlerDict[INDEX_MODE] = new Object();
 	mouseHandlerDict[DRAWING_MODE] = new Object();
 
-	mouseHandlerDict[SLIDE_MODE][MOUSE_DOWN] = function(evnt) { return dispatchEffects(1); };
+	mouseHandlerDict[SLIDE_MODE][MOUSE_DOWN] = function(evnt) { return rps.stage.changeSlide(1); };
 	mouseHandlerDict[SLIDE_MODE][MOUSE_WHEEL] = function(evnt) { return slideMousewheel(evnt); };
 
 	mouseHandlerDict[INDEX_MODE][MOUSE_DOWN] = function(evnt) { return toggleSlideIndex(); };
@@ -1085,160 +968,6 @@ function padString(str, len)
 	return outStr;
 }
 
-/** Function to update the export layer.
- */
-function slideUpdateExportLayer()
-{
-	// Suspend redraw since we are going to mess with the slides.
-	var suspendHandle = rps.dom.getRoot().suspendRedraw(2000);
-
-	var tmpActiveSlide = activeSlide;
-	var tmpActiveEffect = activeEffect;
-	var exportedLayers = new Array();
-
-	for (var counterSlides = 0; counterSlides < slides.length; counterSlides++)
-	{
-		var exportNode;
-
-		setSlideToState(counterSlides, STATE_START);
-
-		var maxEffect = 0;
-
-		if (slides[counterSlides].effects)
-		{
-			maxEffect = slides[counterSlides].effects.length;
-		}
-
-		exportNode = slides[counterSlides].element.cloneNode(true);
-		exportNode.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
-		exportNode.setAttributeNS(NSS['inkscape'], "label", "slide_" + padString((counterSlides + 1).toString(), slides.length.toString().length) + "_effect_" + padString("0", maxEffect.toString().length));
-
-		exportedLayers.push(exportNode);
-
-		if (slides[counterSlides]["effects"])
-		{	
-			for (var counter = 0; counter < slides[counterSlides]["effects"].length; counter++)
-			{
-				for (var subCounter = 0; subCounter < slides[counterSlides]["effects"][counter].length; subCounter++)
-				{
-					var effect = slides[counterSlides]["effects"][counter][subCounter];
-					if (effect["effect"] == "fade")
-						fade(parseInt(effect["dir"]), effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "appear")
-						appear(parseInt(effect["dir"]), effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "pop")
-						pop(parseInt(effect["dir"]), effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "view")
-						view(parseInt(effect["dir"]), effect["element"], STATE_END, effect["options"]);	
-				}
-
-				var layerName = "slide_" + padString((counterSlides + 1).toString(), slides.length.toString().length) + "_effect_" + padString((counter + 1).toString(), maxEffect.toString().length);
-				exportNode = slides[counterSlides].element.cloneNode(true);
-				exportNode.setAttributeNS(NSS['inkscape'], "groupmode", "layer");
-				exportNode.setAttributeNS(NSS['inkscape'], "label", layerName);
-				exportNode.setAttribute("id", layerName);
-
-				exportedLayers.push(exportNode);
-			}
-		}
-	}
-
-	activeSlide = tmpActiveSlide;
-	activeEffect = tmpActiveEffect;
-	setSlideToState(activeSlide, activeEffect);
-
-	// Copy image.
-	var newDoc = document.documentElement.cloneNode(true);
-
-	// Delete viewbox form new imag and set width and height.
-	newDoc.removeAttribute('viewbox');
-	newDoc.setAttribute('width', rps.ui.width);
-	newDoc.setAttribute('height', rps.ui.height);
-
-	// Delete all layers and script elements.
-	var nodesToBeRemoved = new Array();
-
-	for (var childCounter = 0; childCounter <  newDoc.childNodes.length; childCounter++)
-	{
-		var child = newDoc.childNodes[childCounter];
-
-		if (child.nodeType == 1)
-		{
-			if ((child.nodeName.toUpperCase() == 'G') || (child.nodeName.toUpperCase() == 'SCRIPT'))
-			{
-				nodesToBeRemoved.push(child);
-			}
-		}
-	}
-
-	for (var ndCounter = 0; ndCounter < nodesToBeRemoved.length; ndCounter++)
-	{
-		var nd = nodesToBeRemoved[ndCounter];
-
-		// Before removing the node, check whether it contains any definitions.
-		var defs = nd.getElementsByTagNameNS(NSS['svg'], "defs");
-
-		for (var defsCounter = 0; defsCounter < defs.length; defsCounter++)
-		{
-			if (defs[defsCounter].id)
-			{
-				newDoc.appendChild(defs[defsCounter].cloneNode(true));
-			}
-		}
-
-		// Remove node.
-		nd.parentNode.removeChild(nd);
-	}
-
-	// Set current layer.
-	if (exportedLayers[0])
-	{
-		var namedView;
-
-		for (var nodeCounter = 0; nodeCounter < newDoc.childNodes.length; nodeCounter++)
-		{
-			if ((newDoc.childNodes[nodeCounter].nodeType == 1) && (newDoc.childNodes[nodeCounter].getAttribute('id') == 'base'))
-			{
-				namedView = newDoc.childNodes[nodeCounter];
-			}
-		}
-
-		if (namedView)
-		{
-			namedView.setAttributeNS(NSS['inkscape'], 'current-layer', exportedLayers[0].getAttributeNS(NSS['inkscape'], 'label'));
-		}
-	}
-
-	// Add exported layers.
-	while (exportedLayers.length > 0)
-	{
-		var nd = exportedLayers.pop();
-
-		nd.setAttribute("opacity",1);
-		nd.style.display = "inherit";
-
-		newDoc.appendChild(nd);
-	}
-
-	// Serialise the new document.
-	var serializer = new XMLSerializer();
-	var strm = 
-	{
-		content : "",
-		close : function() {},  
-		flush : function() {},  
-		write : function(str, count) { this.content += str; }  
-	};
-
-	var xml = serializer.serializeToStream(newDoc, strm, 'UTF-8');
-
-	window.location = 'data:application/svg+xml;base64;charset=utf-8,' + window.btoa(strm.content);
-
-	// Unsuspend redraw.
-	rps.dom.getRoot().unsuspendRedraw(suspendHandle);
-	rps.dom.getRoot().forceRedraw();
-}
-
 /** Function to undo last drawing operation.
 */
 function drawingUndo()
@@ -1383,9 +1112,9 @@ function slideMousewheel(e)
 	}
 
 	if (delta > 0)
-		skipEffects(-1);
+		rps.stage.changeSlide(-1);
 	else if (delta < 0)
-		skipEffects(1);
+		rps.stage.changeSlide(1);
 
 	if (e.preventDefault)
 		e.preventDefault();
@@ -1687,71 +1416,8 @@ function pop(dir, element, time, options)
  *  @param slide the slide to use
  *  @param state the state into which the slide should be set
  */
-function setSlideToState(slide, state)
-{
-	slides[slide]["viewGroup"].setAttribute("transform", slides[slide].initialView);
-
-	if (slides[slide]["effects"])
-	{	
-		if (state == STATE_END)
-		{
-			for (var counter = 0; counter < slides[slide]["effects"].length; counter++)
-			{
-				for (var subCounter = 0; subCounter < slides[slide]["effects"][counter].length; subCounter++)
-				{
-					var effect = slides[slide]["effects"][counter][subCounter];
-					if (effect["effect"] == "fade")
-						fade(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "appear")
-						appear(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "pop")
-						pop(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "view")
-						view(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-				}
-			}
-		}
-		else if (state == STATE_START)
-		{
-			for (var counter = slides[slide]["effects"].length - 1; counter >= 0; counter--)
-			{
-				for (var subCounter = 0; subCounter < slides[slide]["effects"][counter].length; subCounter++)
-				{
-					var effect = slides[slide]["effects"][counter][subCounter];
-					if (effect["effect"] == "fade")
-						fade(parseInt(effect["dir"]) * -1, effect["element"], STATE_START, effect["options"]);	
-					else if (effect["effect"] == "appear")
-						appear(parseInt(effect["dir"]) * -1, effect["element"], STATE_START, effect["options"]);	
-					else if (effect["effect"] == "pop")
-						pop(parseInt(effect["dir"]) * -1, effect["element"], STATE_START, effect["options"]);	
-					else if (effect["effect"] == "view")
-						view(parseInt(effect["dir"]) * -1, effect["element"], STATE_START, effect["options"]);	
-				}
-			}
-		}
-		else
-		{
-			setSlideToState(slide, STATE_START);
-
-			for (var counter = 0; counter < slides[slide]["effects"].length && counter < state; counter++)
-			{
-				for (var subCounter = 0; subCounter < slides[slide]["effects"][counter].length; subCounter++)
-				{
-					var effect = slides[slide]["effects"][counter][subCounter];
-					if (effect["effect"] == "fade")
-						fade(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "appear")
-						appear(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "pop")
-						pop(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-					else if (effect["effect"] == "view")
-						view(effect["dir"], effect["element"], STATE_END, effect["options"]);	
-				}
-			}
-		}
-	}
-
-	window.location.hash = (activeSlide + 1) + '_' + activeEffect;
+function setSlideToState(slide) {
+	window.location.hash = (activeSlide + 1);
 }
 
 /** Convenience function to translate a attribute string into a dictionary.
