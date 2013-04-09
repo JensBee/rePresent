@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<inkscape-extension xmlns="http://www.inkscape.org/namespace/inkscape/extension">
+	<_name>rePresent presentation export</_name>
+	<id>represent.export</id>
+	<dependency type="extension">org.inkscape.output.svg.inkscape</dependency>
+	<dependency type="executable" location="extensions">rePresent_export.py</dependency>
+	<dependency type="executable" location="extensions">inkex.py</dependency>
+	<dependency type="executable" location="extensions">inkinkex.py</dependency>
+	<output>
+		<extension>.svg</extension>
+		<mimetype>application/x-zip</mimetype>
+		<_filetypename>rePresent presentation (*.svg)</_filetypename>
+		<_filetypetooltip>Creates a svg file containing all slides of a rePresent presentation and with the needed scripts to run inside a webbrowser.</_filetypetooltip>
+		<dataloss>TRUE</dataloss>
+	</output>
+	<script>
+		<command reldir="extensions" interpreter="python">rePresent_export.py</command>
+		<helper_extension>org.inkscape.output.svg.inkscape</helper_extension>
+	</script>
+</inkscape-extension>
