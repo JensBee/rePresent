@@ -12,18 +12,24 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 
+# Assumptions:
+#  - slide do not have slide children
+
+import random
 import inkex
 import inkinkex
 import os
 import re
 import sys
-_ = gettext.gettext
+_ = inkex._
 
+NS = u"https://github.com/JensBee/rePresent"
 NSS = {
     'inkscape': '{' + inkex.NSS['inkscape'] + '}',
     'sodipodi': '{' + inkex.NSS['sodipodi'] + '}',
     'svg': '{' + inkex.NSS['svg'] + '}',
-    'xlink': '{' + inkex.NSS['xlink'] + '}'
+    'xlink': '{' + inkex.NSS['xlink'] + '}',
+    'represent': '{' + NS + '}'
 }
 err_file = open("/tmp/inkscape_rps_efx.txt", 'w')  # DBG
 
@@ -32,13 +38,22 @@ CSS_FONT_ATTRIBUTES = ['-inkscape-font-specification',
                        'font-size', 'font-stretch',
                        'font-style', 'font-variant', 'font-weight']
 CSS_REMOVE_ATTRIBUTES = ['line-height'] + CSS_FONT_ATTRIBUTES
-INKSCAPE_KEEP_ATTRIBUTES = ['groupmode', 'label']
+INKSCAPE_KEEP_ATTRIBUTES = []  # ['groupmode', 'label']
 
 
 class RePresentDocument(inkinkex.InkEffect):
+    NODE_TYPES = {
+        'other': -1,
+        'gmaster': 0,
+        'master': 1,
+        'ngroup': 2,
+        'part': 3,
+        'slide': 4
+    }
+
     def __init__(self):
         inkinkex.InkEffect.__init__(self)
-        #inkex.NSS[u"represent"] = u"https://github.com/JensBee/rePresent"
+        inkex.NSS[u"represent"] = NS
         # number of master layers (really needed?)
         self.masterCount = 0
         # number of slide layers
@@ -53,7 +68,7 @@ class RePresentDocument(inkinkex.InkEffect):
         self.masterGlobal = None
 
     def output(self):
-        #self.document.write(sys.stdout)
+        # self.document.write(sys.stdout)
         sys.stdout.write(inkex.etree.tostring(self.document,
                                               pretty_print=True))
 
@@ -67,50 +82,79 @@ class RePresentDocument(inkinkex.InkEffect):
         # all slides will be stored in one layer
         self.slidesNode = inkex.etree.Element(inkex.addNS('g'))
         self.slidesNode.set("id", "rePresent-slides")
-        self.slidesNode.set("style", "display:inherit")
+        self.slidesNode.set("style", "display:none")
         self.document.getroot().append(self.slidesNode)
+        # display order of slides is stored in a seperate layer
+        self.slidesOrder = inkex.etree.Element(inkex.addNS('g'))
+        self.slidesOrder.set("id", "rePresent-slides-order")
+        self.slidesOrder.set("style", "display:inline")
+        self.document.getroot().append(self.slidesOrder)
 
-    def getChildSlides(self, node):
-        master = []  # nodes that are master layers
-        slides = []  # nodes that are slides
-        stack = []  # other layers
+    def getChildNodes(self, node):
+        u"""Get all child nodes of a node we are interested in. These are
+        all slide types ('~', '+'), master layers ('!') and named
+        groups ('_')
+        """
+        nodeStack = []
         for child in node.iterchildren(tag=NSS['svg']+'g'):
             if (NSS['inkscape']+'groupmode' in child.attrib and
-                    child.attrib[NSS['inkscape']+'groupmode'] == 'layer'):
-                if NSS['inkscape']+'label' in child.attrib:
-                    label = child.attrib[NSS['inkscape'] + 'label'].lower()
-                    if "{master}" in label:
-                        master.append(child)
-                    elif label.startswith('~'):
-                        slides.append(child)
+                    child.attrib[NSS['inkscape']+'groupmode'] == 'layer' and
+                    NSS['inkscape']+'label' in child.attrib):
+                label = child.attrib[NSS['inkscape'] + 'label'].lower()
+                if label.startswith('!'):
+                    nodeStack.append((child, self.NODE_TYPES['master']))
+                elif label.startswith('_'):
+                    nodeStack.append((child, self.NODE_TYPES['ngroup']))
+                elif label.startswith('~'):
+                    nodeStack.append((child, self.NODE_TYPES['slide']))
+                elif label.startswith('+'):
+                    nodeStack.append((child, self.NODE_TYPES['part']))
                 else:
-                    stack.append(child)
-        return (master, slides, stack)
+                    nodeStack.append((child, self.NODE_TYPES['other']))
+        return nodeStack
 
-    def attachMasterSlide(self, master, node):
-        u"""Attach a master layer to a single slide layer"""
-        masterLayer = inkex.etree.Element(inkex.addNS('use'))
-        masterLayer.set(NSS['xlink']+'href', '#'+master.get('id'))
-        node.insert(0, masterLayer)
+    def attachMasterSlide(self, masters, node):
+        u"""Attach master layer(s) to a single slide layer"""
+        if len(masters):
+            if type(masters) is not list:
+                masters = [masters]
+            for master in masters:
+                masterLayer = inkex.etree.Element(inkex.addNS('use'))
+                masterLayer.set(NSS['xlink'] + 'href', '#' + master.get('id'))
+                node.insert(0, masterLayer)
 
     def attachGlobalMaster(self):
         u"""Attach the global master to all slides"""
-        slides = self.document.xpath('//g[@id="rePresent-slides"]',
-                                     namespaces=inkex.NSS)
-        if self.masterGlobal is not None and len(slides):
-            for slide in slides[0].iterchildren(tag=NSS['svg']+'g'):
-                err_file.write("MST[" + slide.get("id") + "] attached\n")
-                self.attachMasterSlide(self.masterGlobal, slide)
+        if self.masterGlobal is not None:
+            slides = self.document.xpath('//g[@id="rePresent-slides"]',
+                                         namespaces=inkex.NSS)
+            if len(slides):
+                for slide in slides[0].iterchildren(tag=NSS['svg']+'g'):
+                    err_file.write("MST[" + slide.get("id") + "] attached\n")
+                    self.attachMasterSlide(self.masterGlobal, slide)
         else:
             err_file.write("MST NONE\n")
 
-    def moveSlide(self, node, type):
+    def moveSlide(self, node, nodeType, group=None):
         u"""Moves a slide node of a given type to the appropriate layer"""
-        if type == 'slide':
+        if nodeType == self.NODE_TYPES['slide']:
+            # store node content
+            node.set('style', "display:inline")
+            node.append(node)
             self.slidesNode.append(node)
-        elif type == 'master':
+            # store link in slide order layer
+            if node.get('id') is None:
+                node.set('id', 'rPs_' + str(random.randint(1, 10000)))
+            nodeLink = inkex.etree.Element(inkex.addNS('use'))
+            nodeLink.set('style', "display:none")
+            nodeLink.set(NSS['xlink'] + 'href', '#' + node.get('id'))
+            if group is not None:
+                group.append(nodeLink)
+            else:
+                self.slidesOrder.append(nodeLink)
+        elif nodeType == self.NODE_TYPES['master']:
             self.mastersNode.append(node)
-        elif type == 'gmaster':
+        elif nodeType == self.NODE_TYPES['gmaster']:
             if self.masterGlobal is None:
                 self.masterGlobal = inkex.etree.Element(inkex.addNS('g'))
                 self.masterGlobal.set("id", "rePresent-master-global")
@@ -120,44 +164,72 @@ class RePresentDocument(inkinkex.InkEffect):
             sys.exit(_('Cannot move slide (id:%s). Type %s is unknown.' %
                        node.get('id'), type))
 
+    def filterNodes(self, nodeList, nodeType):
+        nodes = []
+        for node, nType in nodeList:
+            if nType == nodeType:
+                nodes.append(node)
+        return nodes
+
+    def addSlideGroup(self, label=""):
+        u"""Creates and adds a grouping node for slides to the slides layer."""
+        gNode = inkex.etree.Element(inkex.addNS('g'))
+        gNode.set(NSS['represent'] + 'type', "group")
+        if len(label):
+            gNode.set(NSS['represent']+'label', label)
+        self.slidesOrder.append(gNode)
+        return gNode
+
     def getMasterSlides(self):
         u"""Find all master slides in the document."""
-        err_file.write("--MASTER-SLIDES--\n")
-
-        # get root master and slide layers
-        masters, slides, stack = self.getChildSlides(self.document.getroot())
+        # collect nodes on first tier
+        rootNodes = self.getChildNodes(self.document.getroot())
 
         # collect root master layers in a special global master layer
-        if len(masters):
-            for master in masters:
-                self.moveSlide(master, 'gmaster')
+        for node, nodeType in rootNodes:
+            if nodeType == self.NODE_TYPES['master']:
+                self.moveSlide(node, self.NODE_TYPES['gmaster'])
+            elif nodeType in (self.NODE_TYPES['slide'],
+                              self.NODE_TYPES['part']):
+                self.moveSlide(node, nodeType)
+            elif nodeType in (self.NODE_TYPES['ngroup'],
+                              self.NODE_TYPES['other']):
+                group = None
+                # named groups may be empty (when used as bookmarks) so check
+                # beforehand
+                if nodeType == self.NODE_TYPES['ngroup']:
+                    group = self.addSlideGroup(
+                        node.get(NSS['inkscape'] + 'label'))
+                # get children of group like nodes
+                subNodes = self.getChildNodes(node)
+                if len(subNodes):
+                    # check for local masters
+                    masters = self.filterNodes(subNodes,
+                                               self.NODE_TYPES['master'])
+                    for subNode, subNodeType in subNodes:
+                        # skip master nodes, but move them
+                        if subNodeType == self.NODE_TYPES['master']:
+                            self.moveSlide(subNode, subNodeType)
+                            continue
+                        # skip non slides
+                        if subNodeType != self.NODE_TYPES['slide']:
+                            continue
+                        # add local masters
+                        self.attachMasterSlide(masters, subNode)
+                        # add subnode as slide
+                        self.moveSlide(subNode, subNodeType, group)
+                        # check for parts inside subnode
+                        partNodes = self.filterNodes(self.getChildNodes(subNode),
+                                                     self.NODE_TYPES['part'])
+                        # parts are made of subnode + previous part content
+                        parts = []
+                        for partNode in partNodes:
+                            self.attachMasterSlide([subNode] + parts, partNode)
+                            # TODO: mark these parts
+                            self.moveSlide(partNode, subNodeType, group)
+                            parts.append(partNode)
 
-        # move slides (this must be iterative)
-        if len(slides):
-            for slide in stack:
-                self.slideCount += 1
-                slide.set('id', 'rePresent-slide-'+str(self.slideCount))
-                self.slidesNode.append(slide)
-
-        # for action, element in inkex.etree.iterwalk(self.document.getroot(),
-        #                                             events=('start', 'end')):
-        #     if action == 'start' and element.tag == (NSS['svg']+'g'):
-        #         stack.append(element)
-        # push all masters and slides to specific layers
-        # for element in stack:
-        #     if (NSS['inkscape']+'label' in element.attrib and
-        #             "{master}" in element.attrib[NSS['inkscape'] +
-        #             'label'].lower()):
-        #         self.masterCount += 1
-        #         element.set('id', 'rePresent_master_'+str(self.masterCount))
-        #         self.mastersNode.append(element)
-        #     else:
-        #         self.slideCount += 1
-        #         element.set('id', 'rePresent_slide_'+str(self.slideCount))
-        #         self.slidesNode.append(element)
-        # DBG
-
-        # finally link global master to slides
+        # finally link global master to slides (lowest order)
         self.attachGlobalMaster()
 
     def addScript(self):
