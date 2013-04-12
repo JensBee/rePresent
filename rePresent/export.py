@@ -41,6 +41,40 @@ CSS_REMOVE_ATTRIBUTES = ['line-height'] + CSS_FONT_ATTRIBUTES
 INKSCAPE_KEEP_ATTRIBUTES = []  # ['groupmode', 'label']
 
 
+def styleToDict(style):
+    u"""Convert style attribute content to a dict type."""
+    if len(style):
+        return dict([i.split(":") for i in style.split(";") if len(i)])
+    return {}
+
+
+def styleDictToStr(style):
+    u"""Flattens a element style dict into an attribute string."""
+    if len(style):
+        return ';'.join(['%s:%s' % (attr, value) for
+                       (attr, value) in style.items()])
+    return ""
+
+
+def setStyle(node, style):
+    u"""Set or update the style attribute values for a given element."""
+    if 'style' in node.attrib.keys():
+        currStyle = styleToDict(node.get('style'))
+        currStyle.update(style)
+        node.set('style', styleDictToStr(currStyle))
+    else:
+        node.set('style', styleDictToStr(style))
+
+
+def setAttributes(node, attributes):
+    if len(attributes):
+        for (attr, value) in attributes.items():
+            if attr == 'style':
+                setStyle(node, value)
+            else:
+                node.set(attr, value)
+
+
 class RePresentDocument(inkinkex.InkEffect):
     NODE_TYPES = {
         'other': -1,
@@ -68,27 +102,71 @@ class RePresentDocument(inkinkex.InkEffect):
         self.masterGlobal = None
 
     def output(self):
-        # self.document.write(sys.stdout)
-        sys.stdout.write(inkex.etree.tostring(self.document,
-                                              pretty_print=True))
+        u"""Write the final document."""
+        self.document.write(sys.stdout)
 
     def prepareSvg(self):
         u"""Add some elements needed for structuring the presentation."""
+        root = self.document.getroot()
+
+        # set the background color
+        # TODO: don't overwrite existing styles
+        baseNode = root.xpath('//sodipodi:namedview[@id="base"]',
+                              namespaces=inkex.NSS)
+        if len(baseNode) and 'pagecolor' in baseNode[0].attrib:
+            setStyle(root, {'background-color': baseNode[0].get('pagecolor')})
+        else:
+            setStyle(root, {'background-color': "#000"})
+
+        # set size
+        size = (root.get('width'), root.get('height'))
+        setAttributes(root, {
+            'viewBox': '0 0 %s %s' % size,
+            'width': '100%',
+            'height': '100%'
+        })
+        # add clipping path to restrict slides content to drawing area
+        defs = root.xpath('//svg:defs', namespaces=inkex.NSS)
+        if not len(defs):
+            defNode = inkex.etree.Element(inkex.addNS('defs'))
+            root.append(defNode)
+            defs = [defNode]
+        rectNode = inkex.etree.Element(inkex.addNS('rect'))
+        setAttributes(rectNode, {
+            'x': "0",
+            'y': "0",
+            'width': size[0],
+            'height': size[1]
+        })
+        clipNode = inkex.etree.Element(inkex.addNS('clipPath'))
+        setAttributes(clipNode, {
+            'id': "rePresent-slide-clip",
+            'clipPathUnits': "userSpaceOnUse"
+        })
+        clipNode.append(rectNode)
+        defs[0].append(clipNode)
+
         # all masters will be stored in one layer for later referencing
         self.mastersNode = inkex.etree.Element(inkex.addNS('g'))
-        self.mastersNode.set("id", "rePresent-slides-masters")
-        self.mastersNode.set("style", "display:none")
-        self.document.getroot().append(self.mastersNode)
+        setAttributes(self.mastersNode, {
+                      'id': "rePresent-slides-masters",
+                      'style': {'display': 'none'}
+                      })
+        root.append(self.mastersNode)
         # all slides will be stored in one layer
         self.slidesNode = inkex.etree.Element(inkex.addNS('g'))
-        self.slidesNode.set("id", "rePresent-slides")
-        self.slidesNode.set("style", "display:none")
-        self.document.getroot().append(self.slidesNode)
+        setAttributes(self.slidesNode, {
+            'id': "rePresent-slides",
+            'style': {'display': 'none'}
+        })
+        root.append(self.slidesNode)
         # display order of slides is stored in a seperate layer
         self.slidesOrder = inkex.etree.Element(inkex.addNS('g'))
-        self.slidesOrder.set("id", "rePresent-slides-order")
-        self.slidesOrder.set("style", "display:inline")
-        self.document.getroot().append(self.slidesOrder)
+        setAttributes(self.slidesOrder, {
+            'id': "rePresent-slides-order",
+            'style': {'display': 'inline'}
+        })
+        root.append(self.slidesOrder)
 
     def getChildNodes(self, node):
         u"""Get all child nodes of a node we are interested in. These are
@@ -130,15 +208,14 @@ class RePresentDocument(inkinkex.InkEffect):
                                          namespaces=inkex.NSS)
             if len(slides):
                 for slide in slides[0].iterchildren(tag=NSS['svg']+'g'):
-                    err_file.write("MST[" + slide.get("id") + "] attached\n")
                     self.attachMasterSlide(self.masterGlobal, slide)
-        else:
-            err_file.write("MST NONE\n")
 
     def moveSlide(self, node, nodeType, group=None):
-        u"""Moves a slide node of a given type to the appropriate layer"""
+        u"""Moves a slide node of a given type to the appropriate layer. Also
+        links slide nodes to the slide layer and add additial metadata for
+        presentation."""
         if nodeType == self.NODE_TYPES['slide']:
-            # store node content
+            # store original node content
             node.set('style', "display:inline")
             node.append(node)
             self.slidesNode.append(node)
@@ -146,6 +223,7 @@ class RePresentDocument(inkinkex.InkEffect):
             if node.get('id') is None:
                 node.set('id', 'rPs_' + str(random.randint(1, 10000)))
             nodeLink = inkex.etree.Element(inkex.addNS('use'))
+            nodeLink.set('clip-path', "url(#rePresent-slide-clip)")
             nodeLink.set('style', "display:none")
             nodeLink.set(NSS['xlink'] + 'href', '#' + node.get('id'))
             if group is not None:
@@ -194,6 +272,7 @@ class RePresentDocument(inkinkex.InkEffect):
                 self.moveSlide(node, nodeType)
             elif nodeType in (self.NODE_TYPES['ngroup'],
                               self.NODE_TYPES['other']):
+                # MARK
                 group = None
                 # named groups may be empty (when used as bookmarks) so check
                 # beforehand
@@ -219,8 +298,9 @@ class RePresentDocument(inkinkex.InkEffect):
                         # add subnode as slide
                         self.moveSlide(subNode, subNodeType, group)
                         # check for parts inside subnode
-                        partNodes = self.filterNodes(self.getChildNodes(subNode),
-                                                     self.NODE_TYPES['part'])
+                        partNodes = self.filterNodes(
+                            self.getChildNodes(subNode),
+                            self.NODE_TYPES['part'])
                         # parts are made of subnode + previous part content
                         parts = []
                         for partNode in partNodes:
@@ -298,8 +378,7 @@ class RePresentDocument(inkinkex.InkEffect):
             if not skipReplace and text != "":
                 style = node.get("style")
                 if style:
-                    style = dict([i.split(
-                        ":") for i in style.split(";") if len(i)])
+                    style = styleToDict(style)
                 else:
                     style = {}
 
@@ -365,8 +444,7 @@ class RePresentDocument(inkinkex.InkEffect):
                                                   namespaces=inkex.NSS):
             nodeStyle = node.get("style")
             if len(nodeStyle):
-                nodeStyle = (dict([i.split(":")
-                             for i in nodeStyle.split(";") if len(i)]))
+                nodeStyle = styleToDict(nodeStyle)
                 node.set('style', ';'.join(['%s:%s' % (attr, value) for
                         (attr, value) in nodeStyle.items() if
                     attr not in CSS_REMOVE_ATTRIBUTES]))
