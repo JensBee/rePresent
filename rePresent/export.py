@@ -199,7 +199,9 @@ class RePresentDocument(inkinkex.InkEffect):
                 masters = [masters]
             for master in masters:
                 masterLayer = inkex.etree.Element(inkex.addNS('use'))
-                masterLayer.set(NSS['xlink'] + 'href', '#' + master.get('id'))
+                setAttributes(masterLayer, {
+                    NSS['xlink'] + 'href': '#' + master.get('id')
+                })
                 node.insert(0, masterLayer)
 
     def attachGlobalMaster(self):
@@ -217,27 +219,39 @@ class RePresentDocument(inkinkex.InkEffect):
         presentation."""
         if nodeType == self.NODE_TYPES['slide']:
             # store original node content
-            node.set('style', "display:inline")
+            setStyle(node, {'display': 'inline'})
             node.append(node)
             self.slidesNode.append(node)
             # store link in slide order layer
             if node.get('id') is None:
-                node.set('id', 'rPs_' + str(random.randint(1, 10000)))
+                setAttributes(node, {
+                    'id': 'rPs_' + str(random.randint(1, 10000))
+                })
             nodeLink = inkex.etree.Element(inkex.addNS('use'))
-            nodeLink.set('clip-path', "url(#rePresent-slide-clip)")
-            nodeLink.set('style', "display:none")
-            nodeLink.set(NSS['xlink'] + 'href', '#' + node.get('id'))
+            setAttributes(nodeLink, {
+                'clip-path': "url(#rePresent-slide-clip)",
+                NSS['xlink'] + 'href': '#' + node.get('id'),
+                'style': {'display': 'none'}
+            })
             if group is not None:
                 group.append(nodeLink)
             else:
                 self.slidesOrder.append(nodeLink)
         elif nodeType == self.NODE_TYPES['master']:
+            setStyle(node, {
+                'display': "inherit"
+            })
             self.mastersNode.append(node)
         elif nodeType == self.NODE_TYPES['gmaster']:
             if self.masterGlobal is None:
                 self.masterGlobal = inkex.etree.Element(inkex.addNS('g'))
-                self.masterGlobal.set("id", "rePresent-master-global")
+                setAttributes(self.masterGlobal, {
+                    'id': "rePresent-master-global"
+                })
                 self.mastersNode.append(self.masterGlobal)
+            setStyle(node, {
+                'display': "inherit"
+            })
             self.masterGlobal.append(node)
         else:
             sys.exit(_('Cannot move slide (id:%s). Type %s is unknown.' %
@@ -253,9 +267,13 @@ class RePresentDocument(inkinkex.InkEffect):
     def addSlideGroup(self, label=""):
         u"""Creates and adds a grouping node for slides to the slides layer."""
         gNode = inkex.etree.Element(inkex.addNS('g'))
-        gNode.set(NSS['represent'] + 'type', "group")
+        setAttributes(gNode, {
+            NSS['represent'] + 'type': "group"
+        })
         if len(label):
-            gNode.set(NSS['represent'] + 'label', label)
+            setAttributes(gNode, {
+                NSS['represent'] + 'label': label
+            })
         self.slidesOrder.append(gNode)
         return gNode
 
@@ -323,7 +341,9 @@ class RePresentDocument(inkinkex.InkEffect):
         scriptNode = inkex.etree.Element(inkex.addNS('script', 'svg'))
         scriptNode.text = open(os.path.join(
             os.path.dirname(__file__), "rePresent.js")).read()
-        scriptNode.set('id', "rePresent-script")
+        setAttributes(scriptNode, {
+            'id': "rePresent-script"
+        })
         self.document.getroot().append(scriptNode)
 
     def getNodeText(self, node, text="", skip=False):
@@ -342,7 +362,8 @@ class RePresentDocument(inkinkex.InkEffect):
                 skip = True
             err_file.write("[" + textNode.get("id") + "] !>" +
                            newText.encode('utf8') + "<! {" +
-                           str(textNode.get("style")) + "} [" + str(skip) + "]\n")
+                           str(textNode.get("style")) + "} [" +
+                           str(skip) + "]\n")
             text += newText
         return (text, skip)
 
@@ -391,7 +412,8 @@ class RePresentDocument(inkinkex.InkEffect):
                 textmap[node.get("id")] = (text.replace(
                     " ", ""), stylesum, skipReplace)
                 err_file.write("TXT[" + node.get("id") + "] >>" + text.encode(
-                    'utf8') + "<< {" + stylesum + "} [" + str(skipReplace) + "]\n")
+                    'utf8') + "<< {" + stylesum + "} [" +
+                    str(skipReplace) + "]\n")
 
         # Convert objects to paths
         self.call_inkscape("ObjectToPath", textmap.keys())
@@ -428,10 +450,12 @@ class RePresentDocument(inkinkex.InkEffect):
                     # replace this letter with previous incarnation
                     refid, oldx, oldy = lettermap[uniq_letter]
                     u = inkex.etree.Element("use")
-                    u.set("id", path.get("id") + "-repl")
-                    u.set("{http://www.w3.org/1999/xlink}href", "#" + refid)
-                    u.set("x", "%.2f" % (x - oldx))
-                    u.set("y", "%.2f" % (y - oldy))
+                    setAttributes(u, {
+                        'id': path.get("id") + "-repl",
+                        '{http://www.w3.org/1999/xlink}href': "#" + refid,
+                        'x': "%.2f" % (x - oldx),
+                        'y': "%.2f" % (y - oldy)
+                    })
                     pos = group.index(path)
                     group.insert(pos, u)
                     group.remove(path)
