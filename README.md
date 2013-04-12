@@ -11,8 +11,8 @@ Most of the javascript code is moved to a dedicated export filter written in pyt
 ### Features
 Although rePresent is not complete there are some features already present in the development version.
 
-#### Current
-* All texts are converted to pathes. No problems with missing fonts on different systems.
+#### Finished / should be working
+* All texts are converted to pathes (based on idea & code from [Jan Thor](http://www.janthor.com/sketches/index.php?/archives/6-Fonts,-Texts,-Paths-and-Uses.html)). No more problems with missing fonts on different systems.
 
 #### Planned / not yet finished
 * Print a handout version of your slides direct from the browser
