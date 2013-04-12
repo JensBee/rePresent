@@ -470,7 +470,7 @@ class RePresentDocument(inkinkex.InkEffect):
         self.text2path()
         # final
         self.cleanSvg()
-        # self.addScript()
+        self.addScript()
         err_file.close()
 
 rpDoc = RePresentDocument()
