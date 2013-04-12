@@ -92,13 +92,13 @@ var path_paint_width = path_width;
 // Main class
 var Represent = function() {
 	self = this;
-	
+
 	/****************************************
 	** DOM functions
 	****************************************/
 	this.dom = (function(parent) {
 		var self = {};
-			
+
 		self.node = {
 			// document root
 			'root' : document.getElementsByTagNameNS(NSS['svg'], "svg")[0],
@@ -106,7 +106,7 @@ var Represent = function() {
 			'presentationLayer' : document.createElementNS(NSS['svg'], "g")
 		};
 		self.backgroundColor = '#fff';
-		
+
 		/** Find slide layers nested inside a given parent. Slide nodes are labeled with a leading tilde (~).
 		* @param parent node
 		* @return array of nodes or an empty array if none found
@@ -116,7 +116,7 @@ var Represent = function() {
 			var nodes = new Array();
 			var firstTier = parentNode.childNodes;
 			for (var i = 0; i < firstTier.length; i++) {
-				var node = firstTier[i];			
+				var node = firstTier[i];
 				if (node.nodeType == 1 && node.nodeName === "g"
 					&& node.getAttributeNS(NSS['inkscape'], "label").substring(0, 1) === "~") {
 					nodes.push(node);
@@ -124,7 +124,7 @@ var Represent = function() {
 			}
 			return nodes;
 		}
-		
+
 		/** Find the master slide. The master layer is labeled '{master}'.
 		* @param parent node
 		* @return master slide node or null if none found
@@ -141,20 +141,21 @@ var Represent = function() {
 			}
 			return null;
 		}
-		
+
 		self.getPresentationLayer = function() {
 			return self.node.presentationLayer;
 		};
-		
+
 		self.getRoot = function() {
 			return self.node.root;
 		};
-		
+
 		/** Create a clip path for slides.
 		* @param width of the presentation
 		* @param height of the presentation
 		*/
-		self.createClipPath = function(width, height) {			
+		self.createClipPath = function(width, height) {
+			/* done on export
 			var defsNodes = document.getElementsByTagNameNS(NSS['svg'], "defs");
 			if (defsNodes.length > 0) {
 				var existingClipPath = document.getElementById("jessyInkSlideClipPath");
@@ -174,8 +175,9 @@ var Represent = function() {
 					defsNodes[0].appendChild(clipPath);
 				}
 			}
+			*/
 		};
-		
+
 		/** Inserts a layer at the bottom (display order) an existing one.
 		* @param node to insert
 		* @param target node
@@ -188,14 +190,14 @@ var Represent = function() {
 			clonedNode.style.display = "inherit";
 			target.insertBefore(clonedNode, target.firstChild);
 		};
-		
+
 		function nodeOrRoot(node) {
 			if (node === undefined || node === null) {
 				return self.node.root;
 			}
 			return node;
 		}
-		
+
 		/** Create a layer used for displaying slides. */
 		function setupPresentationLayer() {
 			var layer = self.getPresentationLayer();
@@ -206,9 +208,10 @@ var Represent = function() {
 			layer.style.display = "inherit";
 			self.getRoot().appendChild(layer);
 		};
-		
+
 		/** Sets the background color according to the inkscape setting. */
 		function setBackgroundColor() {
+			/* done in export script
 			var namedViews = document.getElementsByTagNameNS(NSS['sodipodi'], "namedview");
 			for (var counter = 0; counter < namedViews.length; counter++) {
 				if (namedViews[counter].hasAttribute("id") && namedViews[counter].hasAttribute("pagecolor")) {
@@ -219,10 +222,11 @@ var Represent = function() {
 					}
 				}
 			}
+			*/
 		};
-		
+
 		self.initialize = function() {
-			setBackgroundColor();
+			//setBackgroundColor();
 			setupPresentationLayer();
 		};
 
@@ -236,9 +240,9 @@ var Represent = function() {
 		var self = {};
 		self.width = undefined;
 		self.height = undefined;
-		
+
 		/** Function to build a progress bar.
-		*	
+		*
 		*  @param parent node to attach the progress bar to
 		*/
 		self.createProgressBar = function(parentNode) {
@@ -263,25 +267,25 @@ var Represent = function() {
 			circle_timer_indicator.setAttribute("cy", 0.995 * self.height);
 			circle_timer_indicator.setAttribute("r", 0.005 * self.height);
 			g.appendChild(circle_timer_indicator);
-			
+
 			parentNode.appendChild(g);
 		};
 
 		self.setWidth = function(width) {
 			self.width = width;
 		}
-		
+
 		self.setHeight = function(height) {
 			self.height = height;
 		}
 
 		return self;
 	})(this);
-	
+
 	/****************************************
 	** Slideshow functions
 	****************************************/
-	this.stage = (function(parent) {		
+	this.stage = (function(parent) {
 		var self = {};
 		self.modes = {
 			'slide':1,
@@ -289,18 +293,18 @@ var Represent = function() {
 			'draw':3
 		};
 		self.mode = self.modes.slide;
-		
+
 		/** Function to change between slides.
 		*
 		*  @param dir direction (1 = forwards, -1 = backwards)
 		*/
 		self.changeSlide = function(dir) {
 			var nextSlide = activeSlide + dir;
-			
+
 			if (nextSlide > (slides.length -1) || nextSlide < 0) {
 				return;
 			}
-			
+
 			processingEffect = true;
 			effectArray = [ {
 					'dir': (dir == 1 ? -1 : 1),
@@ -314,7 +318,7 @@ var Represent = function() {
 					'options': {}
 				}
 			];
-	
+
 			activeSlide += dir;
 			setProgressBarValue(activeSlide);
 			activeEffect = 0;
@@ -322,7 +326,7 @@ var Represent = function() {
 			transCounter = 0;
 			startTime = (new Date()).getTime();
 			lastFrameTime = null;
-			
+
 			// do the appear effect
 			var suspendHandle = parent.dom.getRoot().suspendRedraw(200);
 			for (var counter = 0; counter < effectArray.length; counter++) {
@@ -334,7 +338,7 @@ var Represent = function() {
 				} else if (theDir == -1) {
 					element.style.display = "none";
 					element.setAttribute("opacity",0);
-				}	
+				}
 			}
 
 			parent.dom.getRoot().unsuspendRedraw(suspendHandle);
@@ -343,13 +347,13 @@ var Represent = function() {
 			window.location.hash = (activeSlide + 1) + '_' + activeEffect;
 			processingEffect = false;
 		};
-		
+
 		/** Function to toggle between index and slide mode. */
 		self.toggleIndex = function() {
 			var suspendHandle = parent.dom.getRoot().suspendRedraw(500);
 
 			if (self.mode == self.modes.slide) {
-				hideProgressBar();		
+				hideProgressBar();
 				INDEX_OFFSET = -1;
 				indexSetPageSlide(activeSlide);
 				self.mode = self.modes.index;
@@ -377,16 +381,17 @@ var Represent = function() {
 			parent.dom.getRoot().unsuspendRedraw(suspendHandle);
 			parent.dom.getRoot().forceRedraw();
 		}
-		
+
 		self.nextSlide = function() {
 			self.changeSlide(1);
 		};
-		
+
 		self.prevSlide = function() {
 			self.changeSlide(-1);
 		};
-		
+
 		self.initialize = function() {
+			/* done on export
 			// make the presentation scaleable.
 			if (parent.dom.getRoot().getAttribute("viewBox")) {
 				parent.ui.setWidth(parent.dom.getRoot().viewBox.animVal.width);
@@ -396,23 +401,26 @@ var Represent = function() {
 				parent.ui.setWidth(parseFloat(parent.dom.getRoot().getAttribute("width")));
 				parent.dom.getRoot().setAttribute("viewBox", "0 0 " + parent.ui.width + " " + parent.ui.height);
 			}
+			*/
 		};
-			
+
 		return self;
 	})(this);
-	
+
 	this.initialize = function() {
-		
+
 		// order matters!
 		this.dom.initialize();
 		this.stage.initialize();
-		
+
+		/* done on export
 		this.dom.getRoot().setAttribute("width", "100%");
 		this.dom.getRoot().setAttribute("height", "100%");
-		
+		*/
+
 		// create a clipping box for slides
-		this.dom.createClipPath(this.ui.width, this.ui.height);
-		
+		// this.dom.createClipPath(this.ui.width, this.ui.height);
+
 		// add ui controls
 		this.ui.createProgressBar(this.dom.getPresentationLayer());
 	};
@@ -434,26 +442,26 @@ var mouseHandlerDictionary = getDefaultMouseHandlerDictionary();
  *  The whole presentation is set-up in this function.
  */
 function jessyInkInit() {
-	// Making a list of the slide and finding the master slide.	
+	// Making a list of the slide and finding the master slide.
 	nodes = rps.dom.getSlides();
 	masterSlide = rps.dom.getMaster();
-	
+
 	// Set start slide.
 	var hashObj = new LocationHash(window.location.hash);
 	activeSlide = hashObj.slideNumber;
 	//activeEffect = hashObj.effectNumber;
 	if (activeSlide < 0) {
 		activeSlide = 0;
-	} 
+	}
 	/*
 	TODO: needs new upper bounds check
 	else if (activeSlide >= tempSlides.length) {
 		activeSlide = tempSlides.length - 1;
 	}
 	*/
-	
+
 	for (var counter = 0; counter < nodes.length; counter++) {
-		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {			
+		if (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") && (nodes[counter].getAttributeNS(NSS['inkscape'], "groupmode") == "layer")) {
 			var originalNode = document.getElementById(nodes[counter].getAttribute("id"));
 			originalNode.style.display = "none";
 			var node = suffixNodeIds(originalNode.cloneNode(true), "_" + counter);
@@ -506,7 +514,7 @@ function jessyInkInit() {
 				node.style.display = "none";
 				node.setAttribute("opacity",0);
 			}
-				
+
 		}
 	}
 
@@ -597,7 +605,7 @@ function indexSetActiveSlide(nbr)
 	slides[activeSlide]["element"].setAttribute("opacity",1);
 }
 
-/** Function to set the page and active slide in index view. 
+/** Function to set the page and active slide in index view.
  *
  *  @param nbr index of the active slide
  *
@@ -684,7 +692,7 @@ function getDefaultCharCodeDictionary()
 
 	charCodeDict[rps.stage.modes.slide]["i"] = function () { return rps.stage.toggleIndex(); };
 	charCodeDict[rps.stage.modes.slide]["d"] = function () { return slideSwitchToDrawingMode(); };
-	charCodeDict[rps.stage.modes.slide]["D"] = function () { return slideQueryDuration(); };	
+	charCodeDict[rps.stage.modes.slide]["D"] = function () { return slideQueryDuration(); };
 	charCodeDict[rps.stage.modes.slide]["p"] = function () { return slideToggleProgressBarVisibility(); };
 	charCodeDict[rps.stage.modes.slide]["t"] = function () { return slideResetTimer(); };
 
@@ -923,14 +931,14 @@ function slideQueryDuration() {
 	if ((new_duration != null) && (new_duration != '')) {
 		timer_duration = new_duration;
 	}
-	
+
 	if (timer_duration > 0) {
 		if (timer_interval !== null) {
 			clearInterval(timer_interval);
 		}
 		document.getElementById("circle_timer_indicator").style.display = "inherit";
 		timer_interval = setInterval("updateTimer()", 1000);
-		rps.ui.createProgressBar(rps.dom.getPresentationLayer());		
+		rps.ui.createProgressBar(rps.dom.getPresentationLayer());
 		updateTimer();
 	} else  {
 		document.getElementById("circle_timer_indicator").style.display = "none";
@@ -1405,7 +1413,7 @@ function pop(dir, element, time, options)
 }
 
 /** Function to set a slide either to the start or the end state.
- *  
+ *
  *  @param slide the slide to use
  *  @param state the state into which the slide should be set
  */
@@ -1431,7 +1439,7 @@ function propStrToDict(str)
 		if (subList.length == 2)
 		{
 			obj[subList[0]] = subList[1];
-		}	
+		}
 	}
 
 	return obj;
@@ -1456,7 +1464,7 @@ function dictToPropStr(dict)
 }
 
 /** Sub-function to add a suffix to the ids of the node and all its children.
- *	
+ *
  *	@param node the node to change
  *	@param suffix the suffix to add
  *	@param replace dictionary of replaced ids
@@ -1485,7 +1493,7 @@ function suffixNoneIds_sub(node, suffix, replace)
 }
 
 /** Function to add a suffix to the ids of the node and all its children.
- *	
+ *
  *	@param node the node to change
  *	@param suffix the suffix to add
  *  @return the changed node
@@ -1501,7 +1509,7 @@ function suffixNodeIds(node, suffix)
 }
 
 /** Function to hide the progress bar.
- *	
+ *
  */
 function hideProgressBar()
 {
@@ -1516,7 +1524,7 @@ function hideProgressBar()
 }
 
 /** Function to show the progress bar.
- *	
+ *
  */
 function showProgressBar()
 {
@@ -1531,7 +1539,7 @@ function showProgressBar()
 }
 
 /** Set progress bar value.
- *	
+ *
  *	@param value the current slide number
  *
  */
@@ -1570,7 +1578,7 @@ function setProgressBarValue(value)
 }
 
 /** Set time indicator.
- *	
+ *
  *	@param value the percentage of time elapse so far between 0.0 and 1.0
  *
  */
@@ -1592,7 +1600,7 @@ function setTimeIndicatorValue(value) {
 }
 
 /** Update timer.
- *	
+ *
  */
 function updateTimer() {
 	timer_elapsed += 1;
@@ -1603,7 +1611,7 @@ function updateTimer() {
  *
  *  @param e event with screen coordinates
  *
- *  @return coordinates in SVG file coordinate system	
+ *  @return coordinates in SVG file coordinate system
  */
 function calcCoord(e) {
 	var svgPoint = document.documentElement.createSVGPoint();
@@ -1653,7 +1661,7 @@ function rectToMatrix(rect)
 		scaleX = scaleY;
 		rectXcorr -= (rps.ui.width / scaleX - rectWidth) / 2;
 		rectWidth = rps.ui.width / scaleX;
-	}	
+	}
 	else
 	{
 		scaleY = scaleX;
@@ -1705,7 +1713,7 @@ function LocationHash(str)
 		{
 		}
 	}
-	
+
 	// Try to extract effect number.
 	if (parts.length >= 2)
 	{
