@@ -87,7 +87,8 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def __init__(self):
         inkinkex.InkEffect.__init__(self)
-        inkex.NSS[u"represent"] = NS
+        inkex.NSS[u"represent"] = u"https://github.com/JensBee/rePresent"
+        # inkex.NSS[u"represent"] = NS
         # number of master layers (really needed?)
         self.masterCount = 0
         # number of slide layers
@@ -174,10 +175,10 @@ class RePresentDocument(inkinkex.InkEffect):
         groups ('_')
         """
         nodeStack = []
-        for child in node.iterchildren(tag=NSS['svg']+'g'):
-            if (NSS['inkscape']+'groupmode' in child.attrib and
-                    child.attrib[NSS['inkscape']+'groupmode'] == 'layer' and
-                    NSS['inkscape']+'label' in child.attrib):
+        for child in node.iterchildren(tag=NSS['svg'] + 'g'):
+            if (NSS['inkscape'] + 'groupmode' in child.attrib and
+                    child.attrib[NSS['inkscape'] + 'groupmode'] == 'layer' and
+                    NSS['inkscape'] + 'label' in child.attrib):
                 label = child.attrib[NSS['inkscape'] + 'label'].lower()
                 if label.startswith('!'):
                     nodeStack.append((child, self.NODE_TYPES['master']))
@@ -207,7 +208,7 @@ class RePresentDocument(inkinkex.InkEffect):
             slides = self.document.xpath('//g[@id="rePresent-slides"]',
                                          namespaces=inkex.NSS)
             if len(slides):
-                for slide in slides[0].iterchildren(tag=NSS['svg']+'g'):
+                for slide in slides[0].iterchildren(tag=NSS['svg'] + 'g'):
                     self.attachMasterSlide(self.masterGlobal, slide)
 
     def moveSlide(self, node, nodeType, group=None):
@@ -254,7 +255,7 @@ class RePresentDocument(inkinkex.InkEffect):
         gNode = inkex.etree.Element(inkex.addNS('g'))
         gNode.set(NSS['represent'] + 'type', "group")
         if len(label):
-            gNode.set(NSS['represent']+'label', label)
+            gNode.set(NSS['represent'] + 'label', label)
         self.slidesOrder.append(gNode)
         return gNode
 
@@ -330,9 +331,9 @@ class RePresentDocument(inkinkex.InkEffect):
         if node.get("style"):
             skip = True
         # iterate through all child nodes
-        for textNode in (node.findall(NSS['svg']+'flowPara') +
-                         node.findall(NSS['svg']+'flowSpan') +
-                         node.findall(NSS['svg']+'tspan')):
+        for textNode in (node.findall(NSS['svg'] + 'flowPara') +
+                         node.findall(NSS['svg'] + 'flowSpan') +
+                         node.findall(NSS['svg'] + 'tspan')):
             (newText, newSkip) = self.getNodeText(
                 textNode, ''.join(textNode.xpath('./text()')), skip)
             if newSkip:
@@ -341,7 +342,7 @@ class RePresentDocument(inkinkex.InkEffect):
                 skip = True
             err_file.write("[" + textNode.get("id") + "] !>" +
                            newText.encode('utf8') + "<! {" +
-                           str(textNode.get("style"))+"} ["+str(skip)+"]\n")
+                           str(textNode.get("style")) + "} [" + str(skip) + "]\n")
             text += newText
         return (text, skip)
 
@@ -358,8 +359,8 @@ class RePresentDocument(inkinkex.InkEffect):
             './/*[self::svg:text or self::svg:flowRoot]',
                 namespaces=inkex.NSS):
             text = ""
-            spans = node.findall(NSS['svg']+"flowPara") + node.findall(
-                NSS['svg']+"flowSpan") + node.findall(NSS['svg']+"tspan")
+            spans = node.findall(NSS['svg'] + "flowPara") + node.findall(
+                NSS['svg'] + "flowSpan") + node.findall(NSS['svg'] + "tspan")
             skipReplace = False
             stylesum = ""
 
@@ -389,8 +390,8 @@ class RePresentDocument(inkinkex.InkEffect):
             if text != "":
                 textmap[node.get("id")] = (text.replace(
                     " ", ""), stylesum, skipReplace)
-                err_file.write("TXT["+node.get("id")+"] >>"+text.encode(
-                    'utf8')+"<< {"+stylesum+"} ["+str(skipReplace)+"]\n")
+                err_file.write("TXT[" + node.get("id") + "] >>" + text.encode(
+                    'utf8') + "<< {" + stylesum + "} [" + str(skipReplace) + "]\n")
 
         # Convert objects to paths
         self.call_inkscape("ObjectToPath", textmap.keys())
@@ -403,13 +404,13 @@ class RePresentDocument(inkinkex.InkEffect):
                 continue
 
             group = self.document.getroot().xpath(
-                ".//svg:g[@id='"+id+"']", namespaces=inkex.NSS)
+                ".//svg:g[@id='" + id + "']", namespaces=inkex.NSS)
 
             if len(group) != 1:
                 continue
 
             group = group[0]
-            paths = [p for p in group.iterdescendants(NSS['svg']+"path")]
+            paths = [p for p in group.iterdescendants(NSS['svg'] + "path")]
 
             if len(text) != len(paths):
                 # this happens if inkscape merges two similar letters into one
@@ -459,8 +460,8 @@ class RePresentDocument(inkinkex.InkEffect):
                         INKSCAPE_KEEP_ATTRIBUTES) or
                         attrName.startswith(NSS['sodipodi'])):
                     del element.attrib[attrName]
-                    err_file.write("DEL["+node.get(
-                        "id")+"] >>" + attrName.encode('utf8') + "\n")
+                    err_file.write("DEL[" + node.get(
+                        "id") + "] >>" + attrName.encode('utf8') + "\n")
 
     def effect(self):
         # content reordering
