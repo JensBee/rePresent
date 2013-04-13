@@ -8,39 +8,11 @@ var RePresent = function() {
 		'right': 39,
 		'down': 40
 	};
-	slides = new Array();
-	activeSlide = 0;
+	var slides = new Array();
+	var activeSlide = 0;
 
-	function showSlide(dir) {
-		var nextSlide = activeSlide + dir;
-		// only debug - this shouldn't happen
-		if (nextSlide > (slides.length -1) || nextSlide < 0) {
-			alert("DEBUG: ran out of slides! " + nextSlide +
-                " (have:"+slides.length+")");
-		}
-        slides[activeSlide].style.display = "none";
-        slides[nextSlide].style.display = "inherit";
-        activeSlide = nextSlide;
-        // alert("Current: "+activeSlide+" next:"+nextSlide);
-	}
-
-	function keydown (e) {
-        direction = 0;
-		// anny efx, etc. should be stopped here
-		if (!e) { e = window.event; }
-		var code = e.keyCode || e.charCode;
-		//alert("keydown["+code+"]@"+activeSlide);
-		if (code == KEYS['right'] || code == KEYS['down']) {
-			direction = 1;
-		} else if (code == KEYS['left'] || code == KEYS['up']) {
-            direction = -1;
-		}
-        showSlide(direction);
-	}
-
-	this.init = function() {
-		document.onkeydown = keydown;
-		var slidesNodes = document.getElementById(
+    function collectSlides() {
+        var slidesNodes = document.getElementById(
             'rePresent-slides-order').childNodes;
         for(slideElement=0, slideElements=slidesNodes.length;
                 slideElement<slideElements; slideElement++){
@@ -59,10 +31,90 @@ var RePresent = function() {
                 slides.push(node);
             }
         }
+    }
+
+	function showSlide(dir, direct) {
+        var nextSlide = activeSlide
+
+        // relative / direct move
+        if (typeof direct === 'undefined') {
+    		nextSlide = activeSlide + dir;
+        } else {
+            nextSlide = dir;
+        }
+
+        // check bounds
+        if (nextSlide > (slides.length -1)) {
+            nextSlide = slides.length -1;
+        } else if (nextSlide < 0) {
+            nextSlide = 0;
+        }
+
+        // any changes? direct jump?
+        if (nextSlide != activeSlide || typeof direct !== 'undefined') {
+            slides[activeSlide].style.display = "none";
+            slides[nextSlide].style.display = "inherit";
+            activeSlide = nextSlide;
+            updateProgressBar();
+        }
+	}
+
+    function updateProgressBar() {
+        width = ((activeSlide + 1) / slides.length) * 1024;
+        pBar = document.getElementById('rePresent-progress-bar');
+        pBar.setAttribute('width', width);
+    }
+
+    function toggleProgressBar() {
+        progress = document.getElementById('rePresent-progress');
+        style = progress.getAttribute('style').toLowerCase();
+        if (style.indexOf('display:none') !== -1) {
+            style = style.replace('display:none', 'display:inline');
+        } else {
+            style = style.replace('display:inline', 'display:none');
+        }
+        progress.setAttribute('style', style);
+    }
+
+    /** Handle function keys. */
+    this.keypress = function(e) {
+        e = e || window.event;
+        var charCode = e.which || e.keyCode;
+        switch(String.fromCharCode(charCode)) {
+            case 'p':
+                toggleProgressBar();
+                break;
+        }
+    }
+
+    /** Handle navigational keys. */
+	this.keydown = function(e) {
+        direction = undefined;
+		// TODO: any efx, etc. should be stopped here
+		e = e || window.event;
+        switch(e.keyCode) {
+            case KEYS['right']:
+            case KEYS['down']:
+                direction = 1;
+                break;
+		    case KEYS['left']:
+            case KEYS['up']:
+                direction = -1;
+                break;
+		}
+        if (typeof direction !== 'undefined') {
+            showSlide(direction);
+        }
+	}
+
+	this.init = function() {
+        collectSlides();
         // alert("found "+slides.length+" slides");
-        showSlide(activeSlide);
+        showSlide(0, 1);
 	};
 }
 var rePresent = new RePresent()
 
 window.onload = rePresent.init();
+document.onkeydown = rePresent.keydown;
+document.onkeypress = rePresent.keypress;

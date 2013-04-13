@@ -15,6 +15,7 @@
 # Assumptions:
 #  - slide do not have slide children
 
+from copy import deepcopy
 import random
 import inkex
 import inkinkex
@@ -106,12 +107,77 @@ class RePresentDocument(inkinkex.InkEffect):
         u"""Write the final document."""
         self.document.write(sys.stdout)
 
+    def createProgressIndicator(self):
+        u"""Create an element providing a progressbar and a time indicator"""
+        root = self.document.getroot()
+        # get drawing size
+        size = (root.get('width'), root.get('height'))
+
+        # progress container
+        progress = inkex.etree.Element(inkex.addNS('g'))
+        setAttributes(progress, {
+            'id': "rePresent-progress",
+            'style': {'display': 'none'},
+        })
+
+        # progressbae
+        progressBar = inkex.etree.Element(inkex.addNS('rect'))
+        setAttributes(progressBar, {
+            'id': "rePresent-progress-bar",
+            'style': {
+                'fill': "rgb(128, 128, 128)",
+                'marker': 'none',
+                'stroke': 'none'
+            },
+            'x': "0",
+            'y': str(0.995 * float(size[1])),
+            'width': "0",
+            'height': str(0.005 * float(size[1]))
+        })
+        progress.append(progressBar)
+
+        # progress start/end point marker
+        progressFinalStart = inkex.etree.Element(inkex.addNS('rect'))
+        setAttributes(progressFinalStart, {
+            'id': "rePresent-progress-final",
+            'style': {
+                'fill': "rgb(128, 128, 128)",
+                'marker': 'none',
+                'stroke': 'none'
+            },
+            'x': str(float(size[0]) - 3),
+            'y': str(0.98 * float(size[1])),
+            'width': "3",
+            'height': str(0.01 * float(size[1]))
+        })
+        progressFinalEnd = deepcopy(progressFinalStart)
+        setAttributes(progressFinalEnd, {
+            'id': "rePresent-progress-final",
+            'x': "0"
+        })
+        progress.append(progressFinalStart)
+        progress.append(progressFinalEnd)
+
+        # time indicator
+        timer = inkex.etree.Element(inkex.addNS('circle'))
+        setAttributes(timer, {
+            'id': "rePresent-progress-timer",
+            'style': {
+                'display': 'none',
+                'fill': "rgb(255, 0, 0)",
+                'marker': 'none',
+                'stroke': 'none'
+            }
+        })
+        progress.append(timer)
+
+        return progress
+
     def prepareSvg(self):
         u"""Add some elements needed for structuring the presentation."""
         root = self.document.getroot()
 
         # set the background color
-        # TODO: don't overwrite existing styles
         baseNode = root.xpath('//sodipodi:namedview[@id="base"]',
                               namespaces=inkex.NSS)
         if len(baseNode) and 'pagecolor' in baseNode[0].attrib:
@@ -119,13 +185,9 @@ class RePresentDocument(inkinkex.InkEffect):
         else:
             setStyle(root, {'background-color': "#000"})
 
-        # set size
+        # get drawing size
         size = (root.get('width'), root.get('height'))
-        setAttributes(root, {
-            'viewBox': '0 0 %s %s' % size,
-            'width': '100%',
-            'height': '100%'
-        })
+
         # add clipping path to restrict slides content to drawing area
         defs = root.xpath('//svg:defs', namespaces=inkex.NSS)
         if not len(defs):
@@ -168,6 +230,16 @@ class RePresentDocument(inkinkex.InkEffect):
             'style': {'display': 'inline'}
         })
         root.append(self.slidesOrder)
+
+        # append the progress indicator
+        root.append(self.createProgressIndicator())
+
+        # finally add a viewbox for scaling
+        setAttributes(root, {
+            'viewBox': '0 0 %s %s' % size,
+            'width': '100%',
+            'height': '100%'
+        })
 
     def getChildNodes(self, node):
         u"""Get all child nodes of a node we are interested in. These are
