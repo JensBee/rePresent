@@ -12,9 +12,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 
-# Assumptions:
-#  - slide do not have slide children
-
 from copy import deepcopy
 import random
 import inkex
@@ -163,10 +160,13 @@ class RePresentDocument(inkinkex.InkEffect):
         setAttributes(timer, {
             'id': "rePresent-progress-timer",
             'style': {
-                'fill': "rgb(255, 0, 0)",
+                'fill': "rgb(0, 0, 0)",
                 'display': 'none'
             },
-            'width': str(0.01 * float(size[1]))
+            'width': str(0.01 * float(size[1])),
+            'height': str(float(progressBar.attrib['height']) * 1.5),
+            'y': str(float(progressBar.attrib['y']) -
+                     (float(progressBar.attrib['height']) * 0.5))
         })
         progress.append(timer)
 
