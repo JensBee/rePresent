@@ -2,14 +2,56 @@ var RePresent = function() {
     NSS = {
         'svg': "http://www.w3.org/2000/svg"
     }
-	KEYS = {
-		'left': 37,
-		'up': 38,
-		'right': 39,
-		'down': 40
-	};
-	var slides = new Array();
-	var activeSlide = 0;
+    KEYS = {
+        'left': 37,
+        'up': 38,
+        'right': 39,
+        'down': 40
+    };
+    var width = null;
+    // array of slides
+    var slides = new Array();
+    // array index of active slide
+    var activeSlide = 0;
+    var timer = {
+        duration: 0,  // duration of presentation
+        interval: null,
+        elapsed: 0,
+        start: 0
+    };
+
+    function setTimerValue(value) {
+        var indicator = document.getElementById("rePresent-progress-timer");
+
+        if (value < 0.0) {
+            value = 0.0;
+        } else if (value > 1.0) {
+            value = 1.0;
+        }
+
+        var x = (width - 0.01 * height) * value + 0.005 * height;
+        indicator.setAttribute('x', x);
+    }
+
+    function updateTimer() {
+        timer.elapsed += 1;
+        setTimerValue((timer.elapsed - timer.start) / (60 * timer.duration));
+    }
+
+    function queryDuration(self) {
+        var duration_new = prompt("Length of presentation in minutes?",
+                                  timer.duration);
+        if ((duration_new != null) && !isNaN(duration_new)
+                && (duration_new > 0)) {
+            timer.duration = duration_new;
+            if (timer.interval !== null) {
+                clearInterval(timer.interval);
+            }
+            document.getElementById("rePresent-progress-timer")
+                                    .style.display = 'inherit';
+            timer.interval = setInterval(function(){updateTimer()}, 1000);
+        }
+    }
 
     function collectSlides() {
         var slidesNodes = document.getElementById(
@@ -33,12 +75,12 @@ var RePresent = function() {
         }
     }
 
-	function showSlide(dir, direct) {
+    function showSlide(dir, direct) {
         var nextSlide = activeSlide
 
         // relative / direct move
         if (typeof direct === 'undefined') {
-    		nextSlide = activeSlide + dir;
+            nextSlide = activeSlide + dir;
         } else {
             nextSlide = dir;
         }
@@ -57,12 +99,12 @@ var RePresent = function() {
             activeSlide = nextSlide;
             updateProgressBar();
         }
-	}
+    }
 
     function updateProgressBar() {
-        width = ((activeSlide + 1) / slides.length) * 1024;
+        widthBar = (((activeSlide + 1) / slides.length)) * width;
         pBar = document.getElementById('rePresent-progress-bar');
-        pBar.setAttribute('width', width);
+        pBar.setAttribute('width', widthBar);
     }
 
     function toggleProgressBar() {
@@ -81,6 +123,9 @@ var RePresent = function() {
         e = e || window.event;
         var charCode = e.which || e.keyCode;
         switch(String.fromCharCode(charCode)) {
+            case 'd':
+                queryDuration(this);
+                break;
             case 'p':
                 toggleProgressBar();
                 break;
@@ -88,30 +133,33 @@ var RePresent = function() {
     }
 
     /** Handle navigational keys. */
-	this.keydown = function(e) {
+    this.keydown = function(e) {
         direction = undefined;
-		// TODO: any efx, etc. should be stopped here
-		e = e || window.event;
+        // TODO: any efx, etc. should be stopped here
+        e = e || window.event;
         switch(e.keyCode) {
             case KEYS['right']:
             case KEYS['down']:
                 direction = 1;
                 break;
-		    case KEYS['left']:
+            case KEYS['left']:
             case KEYS['up']:
                 direction = -1;
                 break;
-		}
+        }
         if (typeof direction !== 'undefined') {
             showSlide(direction);
         }
-	}
+    }
 
-	this.init = function() {
+    this.init = function() {
+        viewBox = document.documentElement.getAttribute('viewBox');
+        width = viewBox.split(' ')[2];
+        height = viewBox.split(' ')[3];
         collectSlides();
         // alert("found "+slides.length+" slides");
         showSlide(0, 1);
-	};
+    };
 }
 var rePresent = new RePresent()
 

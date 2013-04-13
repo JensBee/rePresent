@@ -159,15 +159,14 @@ class RePresentDocument(inkinkex.InkEffect):
         progress.append(progressFinalEnd)
 
         # time indicator
-        timer = inkex.etree.Element(inkex.addNS('circle'))
+        timer = deepcopy(progressBar)
         setAttributes(timer, {
             'id': "rePresent-progress-timer",
             'style': {
-                'display': 'none',
                 'fill': "rgb(255, 0, 0)",
-                'marker': 'none',
-                'stroke': 'none'
-            }
+                'display': 'none'
+            },
+            'width': str(0.01 * float(size[1]))
         })
         progress.append(timer)
 
