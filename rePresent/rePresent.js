@@ -1,12 +1,7 @@
 var RePresent = function() {
-    CONFIG = {
-        index: {
-            spacing: 5 // percentage of slide width
-        }
-    }
     NSS = {
         'svg': "http://www.w3.org/2000/svg"
-    }
+    };
     KEYS = {
         'left': 37,
         'up': 38,
@@ -16,6 +11,14 @@ var RePresent = function() {
     MODES = {
         slide: 0, // presentation mode
         index: 1 // slides index view
+    };
+    DEFAULTS = {
+        index: {
+            columns: 4,
+            spacing: 5, // percentage of slide width
+            selectColor: 'black',
+            selectSize: 5
+        }
     };
     var width = null;
     // array of slides
@@ -30,12 +33,12 @@ var RePresent = function() {
         elapsed: 0,
         start: 0
     };
-    // index view settings
+    // Index view settings. Setup done by initDefaults()
     var index = {
-        columns: 4,
-        spacing: CONFIG.index.spacing,
-        selectedSlide: null
+        selectedSlide: activeSlide
     };
+    // local configuration
+    var config = {};
 
     function setTimerValue(value) {
         var indicator = document.getElementById("rePresent-progress-timer");
@@ -142,6 +145,7 @@ var RePresent = function() {
         if (mode === MODES.index) {
             for (var count=0; count<slides.length; count++) {
                 slides[count].removeAttribute('transform');
+                // hide all but the current slide
                 if (count !== activeSlide) {
                     slides[count].style.display = 'none';
                 }
@@ -149,10 +153,10 @@ var RePresent = function() {
             mode = MODES.slide;
         } else {
             var offset = [0, 0];
-            var space = (index.spacing / 100) * width;
+            var space = (config.index.spacing / 100) * width;
             // calc real space from percentage value
-            var scale = width / ((index.columns * width) +
-                        ((index.columns -1) * space));
+            var scale = width / ((config.index.columns * width) +
+                        ((config.index.columns -1) * space));
             for (var count=0; count<slides.length; count++) {
                 var x = offset[0] * width + offset[0] * space;
                 var y = offset[1] * height + offset[1] * space;
@@ -160,9 +164,16 @@ var RePresent = function() {
                     'scale(' + scale + ') translate(' +
                         x + ',' + y + ')');
                 slides[count].style.display = 'inherit';
-
+                // mark the current slide
+                if (count === activeSlide) {
+                    index.selectedSlide = activeSlide;
+                    slides[count].setAttribute('stroke',
+                                               config.index.selectColor);
+                    slides[count].setAttribute('stroke-width',
+                                               config.index.selectSize);
+                }
                 offset[0]++; // columns
-                if (((count + 1) % index.columns) === 0) {
+                if (((count + 1) % config.index.columns) === 0) {
                     offset[0] = 0;
                     offset[1]++; // rows
                 }
@@ -208,12 +219,30 @@ var RePresent = function() {
         }
     }
 
-    this.init = function() {
+    this.mergeConf = function(conf, uConf) {
+        for (var key in uConf) {
+            try {
+                if (uConf[key].constructor==Object) {
+                    conf[key] = this.mergeConf(conf[key], uConf[key]);
+                } else {
+                    conf[key] = uConf[key];
+                }
+            } catch(e) {
+                conf[key] = uConf[key];
+            }
+        }
+        return conf;
+    }
+
+    this.init = function(userConfig) {
+        // merge user configuration into local config
+        this.mergeConf(config, DEFAULTS);
+        this.mergeConf(config, userConfig);
+
         viewBox = document.documentElement.getAttribute('viewBox');
         width = viewBox.split(' ')[2];
         height = viewBox.split(' ')[3];
         collectSlides();
-        // alert("found "+slides.length+" slides");
         showSlide(0, 1);
     };
 }

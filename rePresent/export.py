@@ -19,6 +19,7 @@ import inkinkex
 import os
 import re
 import sys
+import json
 _ = inkex._
 
 NS = u"https://github.com/JensBee/rePresent"
@@ -75,9 +76,14 @@ def setAttributes(node, attributes):
 
 class RePresentDocument(inkinkex.InkEffect):
     config = {
+        # index view configuration
         'index': {
             # spacing between slides in index view
-            'spacing': "10"
+            'spacing': "10",
+            # frame color of selected slide
+            'selectColor': "red",
+            # size of selected slide frame
+            'selectSize': "2"
         }
     }
     NODE_TYPES = {
@@ -412,9 +418,8 @@ class RePresentDocument(inkinkex.InkEffect):
         scriptNode = inkex.etree.Element(inkex.addNS('script', 'svg'))
         script = open(os.path.join(
             os.path.dirname(__file__), "rePresent.js")).read()
-        # TODO: automate this
         script = script.replace(
-            'CONFIG.index.spacing', self.config['index']['spacing'])
+            'rePresent.init()', 'rePresent.init(%s)' % json.dumps(self.config))
         scriptNode.text = script
         setAttributes(scriptNode, {
             'id': "rePresent-script"
