@@ -85,20 +85,12 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def __init__(self):
         inkinkex.InkEffect.__init__(self)
-        inkex.NSS[u"represent"] = u"https://github.com/JensBee/rePresent"
-        # inkex.NSS[u"represent"] = NS
-        # number of master layers (really needed?)
-        self.masterCount = 0
-        # number of slide layers
-        self.slideCount = 0
-        # do we have a global master layer?
-        self.hasGlobalMaster = False
-        # svg group layer for all master layer
-        self.mastersNode = None
-        # svg group layer for all slide layer
-        self.slidesNode = None
-        # global master layer
-        self.masterGlobal = None
+        inkex.NSS[u"represent"] = NS
+        self.nodes = {
+            'masters': None,  # svg group layer for all master layer
+            'masterGlobal': None,  # global master layer
+            'slides': None,  # svg group layer for all slide layer
+        }
 
     def output(self):
         u"""Write the final document."""
@@ -209,24 +201,32 @@ class RePresentDocument(inkinkex.InkEffect):
         defs[0].append(clipNode)
 
         # all masters will be stored in one layer for later referencing
-        self.mastersNode = inkex.etree.Element(inkex.addNS('g'))
-        setAttributes(self.mastersNode, {
+        self.nodes['masters'] = inkex.etree.Element(inkex.addNS('g'))
+        setAttributes(self.nodes['masters'], {
                       'id': "rePresent-slides-masters",
                       'style': {'display': 'none'}
                       })
-        root.append(self.mastersNode)
+        root.append(self.nodes['masters'])
         # all slides will be stored in one layer
-        self.slidesNode = inkex.etree.Element(inkex.addNS('g'))
-        setAttributes(self.slidesNode, {
+        self.nodes['slides'] = inkex.etree.Element(inkex.addNS('g'))
+        setAttributes(self.nodes['slides'], {
             'id': "rePresent-slides",
             'style': {'display': 'none'}
         })
-        root.append(self.slidesNode)
+        root.append(self.nodes['slides'])
         # display order of slides is stored in a seperate layer
         self.slidesOrder = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.slidesOrder, {
             'id': "rePresent-slides-order",
             'style': {'display': 'inline'}
+        })
+        root.append(self.slidesOrder)
+        # slides overview layer is a different one wich stores only "complete"
+        # slides (e.g. part slides in finished state)
+        self.slidesIndex = inkex.etree.Element(inkex.addNS('g'))
+        setAttributes(self.slidesIndex, {
+            'id': "rePresent-slides-index",
+            'style': {'display': 'none'}
         })
         root.append(self.slidesOrder)
 
@@ -277,12 +277,12 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def attachGlobalMaster(self):
         u"""Attach the global master to all slides"""
-        if self.masterGlobal is not None:
+        if self.nodes['masterGlobal'] is not None:
             slides = self.document.xpath('//g[@id="rePresent-slides"]',
                                          namespaces=inkex.NSS)
             if len(slides):
                 for slide in slides[0].iterchildren(tag=NSS['svg'] + 'g'):
-                    self.attachMasterSlide(self.masterGlobal, slide)
+                    self.attachMasterSlide(self.nodes['masterGlobal'], slide)
 
     def moveSlide(self, node, nodeType, group=None):
         u"""Moves a slide node of a given type to the appropriate layer. Also
@@ -292,7 +292,7 @@ class RePresentDocument(inkinkex.InkEffect):
             # store original node content
             setStyle(node, {'display': 'inline'})
             node.append(node)
-            self.slidesNode.append(node)
+            self.nodes['slides'].append(node)
             # store link in slide order layer
             if node.get('id') is None:
                 setAttributes(node, {
@@ -312,18 +312,19 @@ class RePresentDocument(inkinkex.InkEffect):
             setStyle(node, {
                 'display': "inherit"
             })
-            self.mastersNode.append(node)
+            self.nodes['masters'].append(node)
         elif nodeType == self.NODE_TYPES['gmaster']:
-            if self.masterGlobal is None:
-                self.masterGlobal = inkex.etree.Element(inkex.addNS('g'))
-                setAttributes(self.masterGlobal, {
+            if self.nodes['masterGlobal'] is None:
+                self.nodes['masterGlobal'] = inkex.etree.Element(
+                    inkex.addNS('g'))
+                setAttributes(self.nodes['masterGlobal'], {
                     'id': "rePresent-master-global"
                 })
-                self.mastersNode.append(self.masterGlobal)
+                self.nodes['masters'].append(self.nodes['masterGlobal'])
             setStyle(node, {
                 'display': "inherit"
             })
-            self.masterGlobal.append(node)
+            self.nodes['masterGlobal'].append(node)
         else:
             sys.exit(_('Cannot move slide (id:%s). Type %s is unknown.' %
                        node.get('id'), type))
