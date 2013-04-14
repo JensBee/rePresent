@@ -198,6 +198,7 @@ class RePresentDocument(inkinkex.InkEffect):
             defNode = inkex.etree.Element(inkex.addNS('defs'))
             root.append(defNode)
             defs = [defNode]
+        defs = defs[0]
         rectNode = inkex.etree.Element(inkex.addNS('rect'))
         setAttributes(rectNode, {
             'x': "0",
@@ -211,7 +212,7 @@ class RePresentDocument(inkinkex.InkEffect):
             'clipPathUnits': "userSpaceOnUse"
         })
         clipNode.append(rectNode)
-        defs[0].append(clipNode)
+        defs.append(clipNode)
 
         # all masters will be stored in one layer for later referencing
         self.nodes['masters'] = inkex.etree.Element(inkex.addNS('g'))
@@ -219,14 +220,14 @@ class RePresentDocument(inkinkex.InkEffect):
                       'id': "rePresent-slides-masters",
                       'style': {'display': 'none'}
                       })
-        root.append(self.nodes['masters'])
+        defs.append(self.nodes['masters'])
         # all slides will be stored in one layer
         self.nodes['slides'] = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.nodes['slides'], {
             'id': "rePresent-slides",
             'style': {'display': 'none'}
         })
-        root.append(self.nodes['slides'])
+        defs.append(self.nodes['slides'])
         # display order of slides is stored in a seperate layer
         self.slidesOrder = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.slidesOrder, {

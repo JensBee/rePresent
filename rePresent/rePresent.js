@@ -79,7 +79,6 @@ var RePresent = function() {
         for(var slideElement=0, slideElements=slidesNodes.length;
                 slideElement<slideElements; slideElement++){
             var node = slidesNodes[slideElement];
-            // alert("Node: "+node.nodeName.toLowerCase());
             if (node.nodeName.toLowerCase() == 'g') {
                 var subSlidesNodes = node.childNodes;
                 for(var subSlideElement=0,
@@ -142,7 +141,7 @@ var RePresent = function() {
 
     /** Toggle display of the slides index view. */
     function toggleIndex() {
-        if (mode === MODES.index) {
+        if (mode === MODES.index) { // switch back to slide mode
             for (var count=0; count<slides.length; count++) {
                 slides[count].removeAttribute('transform');
                 // hide all but the current slide
@@ -151,7 +150,7 @@ var RePresent = function() {
                 }
             }
             mode = MODES.slide;
-        } else {
+        } else { // show index mode
             var offset = [0, 0];
             var space = (config.index.spacing / 100) * width;
             // calc real space from percentage value
@@ -167,10 +166,6 @@ var RePresent = function() {
                 // mark the current slide
                 if (count === activeSlide) {
                     index.selectedSlide = activeSlide;
-                    slides[count].setAttribute('stroke',
-                                               config.index.selectColor);
-                    slides[count].setAttribute('stroke-width',
-                                               config.index.selectSize);
                 }
                 offset[0]++; // columns
                 if (((count + 1) % config.index.columns) === 0) {
