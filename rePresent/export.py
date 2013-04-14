@@ -74,6 +74,12 @@ def setAttributes(node, attributes):
 
 
 class RePresentDocument(inkinkex.InkEffect):
+    config = {
+        'index': {
+            # spacing between slides in index view
+            'spacing': "10"
+        }
+    }
     NODE_TYPES = {
         'other': -1,
         'gmaster': 0,
@@ -85,12 +91,13 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def __init__(self):
         inkinkex.InkEffect.__init__(self)
-        inkex.NSS[u"represent"] = NS
+        inkex.NSS[u"represent"] = NS  # seems to have no effect
         self.nodes = {
             'masters': None,  # svg group layer for all master layer
             'masterGlobal': None,  # global master layer
             'slides': None,  # svg group layer for all slide layer
         }
+        self.config = RePresentDocument.config.copy()
 
     def output(self):
         u"""Write the final document."""
@@ -219,14 +226,6 @@ class RePresentDocument(inkinkex.InkEffect):
         setAttributes(self.slidesOrder, {
             'id': "rePresent-slides-order",
             'style': {'display': 'inline'}
-        })
-        root.append(self.slidesOrder)
-        # slides overview layer is a different one wich stores only "complete"
-        # slides (e.g. part slides in finished state)
-        self.slidesIndex = inkex.etree.Element(inkex.addNS('g'))
-        setAttributes(self.slidesIndex, {
-            'id': "rePresent-slides-index",
-            'style': {'display': 'none'}
         })
         root.append(self.slidesOrder)
 
@@ -363,7 +362,6 @@ class RePresentDocument(inkinkex.InkEffect):
                 self.moveSlide(node, nodeType)
             elif nodeType in (self.NODE_TYPES['ngroup'],
                               self.NODE_TYPES['other']):
-                # MARK
                 group = None
                 # named groups may be empty (when used as bookmarks) so check
                 # beforehand
@@ -399,6 +397,7 @@ class RePresentDocument(inkinkex.InkEffect):
                             # TODO: mark these parts
                             self.moveSlide(partNode, subNodeType, group)
                             parts.append(partNode)
+                setStyle(node, {'display': 'none'})
 
         # finally link global master to slides (lowest order)
         self.attachGlobalMaster()
@@ -411,8 +410,12 @@ class RePresentDocument(inkinkex.InkEffect):
             node.getparent().remove(node)
         # add our current version
         scriptNode = inkex.etree.Element(inkex.addNS('script', 'svg'))
-        scriptNode.text = open(os.path.join(
+        script = open(os.path.join(
             os.path.dirname(__file__), "rePresent.js")).read()
+        # TODO: automate this
+        script = script.replace(
+            'CONFIG.index.spacing', self.config['index']['spacing'])
+        scriptNode.text = script
         setAttributes(scriptNode, {
             'id': "rePresent-script"
         })

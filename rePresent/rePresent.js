@@ -1,4 +1,9 @@
 var RePresent = function() {
+    CONFIG = {
+        index: {
+            spacing: 5 // percentage of slide width
+        }
+    }
     NSS = {
         'svg': "http://www.w3.org/2000/svg"
     }
@@ -8,16 +13,28 @@ var RePresent = function() {
         'right': 39,
         'down': 40
     };
+    MODES = {
+        slide: 0, // presentation mode
+        index: 1 // slides index view
+    };
     var width = null;
     // array of slides
     var slides = new Array();
     // array index of active slide
     var activeSlide = 0;
+    // current display mode
+    var mode = MODES.slide;
     var timer = {
         duration: 0,  // duration of presentation
         interval: null,
         elapsed: 0,
         start: 0
+    };
+    // index view settings
+    var index = {
+        columns: 4,
+        spacing: CONFIG.index.spacing,
+        selectedSlide: null
     };
 
     function setTimerValue(value) {
@@ -56,13 +73,14 @@ var RePresent = function() {
     function collectSlides() {
         var slidesNodes = document.getElementById(
             'rePresent-slides-order').childNodes;
-        for(slideElement=0, slideElements=slidesNodes.length;
+        for(var slideElement=0, slideElements=slidesNodes.length;
                 slideElement<slideElements; slideElement++){
             var node = slidesNodes[slideElement];
             // alert("Node: "+node.nodeName.toLowerCase());
             if (node.nodeName.toLowerCase() == 'g') {
                 var subSlidesNodes = node.childNodes;
-                for(subSlideElement=0, subSlideElements=subSlidesNodes.length;
+                for(var subSlideElement=0,
+                        subSlideElements=subSlidesNodes.length;
                         subSlideElement<subSlideElements; subSlideElement++){
                     var subNode = subSlidesNodes[subSlideElement];
                     if (subNode.nodeName.toLowerCase() == 'use') {
@@ -94,8 +112,8 @@ var RePresent = function() {
 
         // any changes? direct jump?
         if (nextSlide != activeSlide || typeof direct !== 'undefined') {
-            slides[activeSlide].style.display = "none";
-            slides[nextSlide].style.display = "inherit";
+            slides[activeSlide].style.display = 'none';
+            slides[nextSlide].style.display = 'inherit';
             activeSlide = nextSlide;
             updateProgressBar();
         }
@@ -107,6 +125,7 @@ var RePresent = function() {
         pBar.setAttribute('width', widthBar);
     }
 
+    /** Toggle display of the time and progress bar. */
     function toggleProgressBar() {
         progress = document.getElementById('rePresent-progress');
         style = progress.getAttribute('style').toLowerCase();
@@ -118,6 +137,40 @@ var RePresent = function() {
         progress.setAttribute('style', style);
     }
 
+    /** Toggle display of the slides index view. */
+    function toggleIndex() {
+        if (mode === MODES.index) {
+            for (var count=0; count<slides.length; count++) {
+                slides[count].removeAttribute('transform');
+                if (count !== activeSlide) {
+                    slides[count].style.display = 'none';
+                }
+            }
+            mode = MODES.slide;
+        } else {
+            var offset = [0, 0];
+            var space = (index.spacing / 100) * width;
+            // calc real space from percentage value
+            var scale = width / ((index.columns * width) +
+                        ((index.columns -1) * space));
+            for (var count=0; count<slides.length; count++) {
+                var x = offset[0] * width + offset[0] * space;
+                var y = offset[1] * height + offset[1] * space;
+                slides[count].setAttribute('transform',
+                    'scale(' + scale + ') translate(' +
+                        x + ',' + y + ')');
+                slides[count].style.display = 'inherit';
+
+                offset[0]++; // columns
+                if (((count + 1) % index.columns) === 0) {
+                    offset[0] = 0;
+                    offset[1]++; // rows
+                }
+            }
+            mode = MODES.index;
+        }
+    }
+
     /** Handle function keys. */
     this.keypress = function(e) {
         e = e || window.event;
@@ -125,6 +178,9 @@ var RePresent = function() {
         switch(String.fromCharCode(charCode)) {
             case 'd':
                 queryDuration(this);
+                break;
+            case 'i':
+                toggleIndex();
                 break;
             case 'p':
                 toggleProgressBar();
