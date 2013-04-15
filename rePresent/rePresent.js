@@ -106,25 +106,25 @@ var RePresent = function() {
         }
     }
 
-    function showSlide(dir, direct) {
+    function showSlide(param) {
+        // TODO: handle param.part
         var nextSlide = activeSlide
 
-        // relative / direct move
-        if (typeof direct === 'undefined') {
-            nextSlide = activeSlide + dir;
-        } else {
-            nextSlide = dir;
+        if (param.direction !== undefined) {
+            nextSlide = activeSlide + param.direction;
+        } else if (param.jumpTo !== undefined) {
+            nextSlide = param.jumpTo;
         }
 
         // check bounds
-        if (nextSlide > (slides.length -1)) {
-            nextSlide = slides.length -1;
+        if (nextSlide > (slides.length - 1)) {
+            nextSlide = slides.length - 1;
         } else if (nextSlide < 0) {
             nextSlide = 0;
         }
 
         // any changes? direct jump?
-        if (nextSlide != activeSlide || typeof direct !== 'undefined') {
+        if (nextSlide != activeSlide || typeof param.jumpTo !== undefined) {
             slides[activeSlide].style.display = 'none';
             slides[nextSlide].style.display = 'inherit';
             activeSlide = nextSlide;
@@ -222,8 +222,8 @@ var RePresent = function() {
                 direction = -1;
                 break;
         }
-        if (typeof direction !== 'undefined') {
-            showSlide(direction);
+        if (typeof direction !== undefined) {
+            showSlide({direction: direction});
         }
     }
 
@@ -242,6 +242,32 @@ var RePresent = function() {
         return conf;
     }
 
+    this.getSlidesFromUrl = function() {
+        var hash = window.location.hash;
+        var currentSlide = new Array();
+        currentSlide[0] = 0;
+        currentSlide[1] = undefined;
+        if (typeof hash !== undefined) {
+            var slides = hash.replace('#', '').split('_');
+            // set main slide
+            if (!isNaN(slides[0])) {
+                currentSlide[0] = parseInt(slides[0]);
+                // set part, if any
+                if (typeof slides[1] !== undefined && !isNaN(slides[1])) {
+                    currentSlide[1] = parseInt(slides[1]);
+                } else {
+                    currentSlide[1] = undefined;
+                }
+            } else {
+                // none set - default to first slide
+                currentSlide[0] = 0;
+                currentSlide[1] = undefined;
+            }
+        }
+        // none set - default to first slide
+        return currentSlide;
+    }
+
     this.init = function(userConfig) {
         // merge user configuration into local config
         this.mergeConf(config, DEFAULTS);
@@ -251,7 +277,12 @@ var RePresent = function() {
         width = viewBox.split(' ')[2];
         height = viewBox.split(' ')[3];
         collectSlides();
-        showSlide(0, 1);
+
+        var currentSlide = this.getSlidesFromUrl();
+        showSlide({
+            jumpTo: currentSlide[0],
+            part: currentSlide[1]
+        });
     };
 }
 var rePresent = new RePresent()
