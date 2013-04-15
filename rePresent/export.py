@@ -94,16 +94,18 @@ class RePresentDocument(inkinkex.InkEffect):
         'master': 1,
         'ngroup': 2,
         'part': 3,
-        'slide': 4
+        'slide': 4,
+        'group': 5
     }
 
     def __init__(self):
         inkinkex.InkEffect.__init__(self)
         inkex.NSS[u"represent"] = NS  # seems to have no effect
         self.nodes = {
-            'masters': None,  # svg group layer for all master layer
-            'masterGlobal': None,  # global master layer
-            'slides': None,  # svg group layer for all slide layer
+            'masters': None,  # svg group layer for all master layer defs
+            'masterGlobal': None,  # global master layer defs
+            'slides': None,  # svg group layer for all slide layer defs
+            'slidesStack': None  # svg group layer for linked slides from defs
         }
         self.config = RePresentDocument.config.copy()
 
@@ -224,6 +226,7 @@ class RePresentDocument(inkinkex.InkEffect):
                       'style': {'display': 'none'}
                       })
         defs.append(self.nodes['masters'])
+
         # all slides will be stored in one layer
         self.nodes['slides'] = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.nodes['slides'], {
@@ -231,13 +234,14 @@ class RePresentDocument(inkinkex.InkEffect):
             'style': {'display': 'none'}
         })
         defs.append(self.nodes['slides'])
+
         # display order of slides is stored in a seperate layer
-        self.slidesOrder = inkex.etree.Element(inkex.addNS('g'))
-        setAttributes(self.slidesOrder, {
-            'id': "rePresent-slides-order",
+        self.nodes['slidesStack'] = inkex.etree.Element(inkex.addNS('g'))
+        setAttributes(self.nodes['slidesStack'], {
+            'id': "rePresent-slides-stack",
             'style': {'display': 'inline'}
         })
-        root.append(self.slidesOrder)
+        root.append(self.nodes['slidesStack'])
 
         # append the progress indicator
         root.append(self.createProgressIndicator())
@@ -296,41 +300,12 @@ class RePresentDocument(inkinkex.InkEffect):
     def getElementCount(self, root):
         return len(root.xpath('*'))
 
-    def moveSlide(self, node, nodeType, group=None):
-        u"""Moves a slide node of a given type to the appropriate layer. Also
-        links slide nodes to the slide layer and add additial metadata for
-        presentation."""
-        if nodeType == self.NODE_TYPES['slide']:
-            # store original node content
-            index = self.getElementCount(self.slidesOrder) + 1
-            setStyle(node, {'display': 'inline'})
-            node.append(node)
-            self.nodes['slides'].append(node)
-            # store link in slide order layer
-            if node.get('id') is None:
-                setAttributes(node, {
-                    'id': 'rPs_' + str(random.randint(1, 10000))
-                })
-            nodeLink = inkex.etree.Element(inkex.addNS('use'))
-            setAttributes(nodeLink, {
-                'clip-path': "url(#rePresent-slide-clip)",
-                NSS['xlink'] + 'href': '#' + node.get('id'),
-                'style': {'display': 'none'},
-                NSS['represent'] + 'index': str(index)
-            })
-            if group is not None:
-                index = self.getElementCount(group) + 1
-                setAttributes(nodeLink,
-                              {NSS['represent'] + 'index': str(index)})
-                group.append(nodeLink)
-            else:
-                self.slidesOrder.append(nodeLink)
-        elif nodeType == self.NODE_TYPES['master']:
-            setStyle(node, {
-                'display': "inherit"
-            })
-            self.nodes['masters'].append(node)
-        elif nodeType == self.NODE_TYPES['gmaster']:
+    def addMasterSlide(self, node, globalMaster=False):
+        u"""Add a master node to the local or global master slides def
+        layer."""
+        setStyle(node, {'display': "inherit"})
+        if globalMaster:
+            # node is a global master for all slides
             if self.nodes['masterGlobal'] is None:
                 self.nodes['masterGlobal'] = inkex.etree.Element(
                     inkex.addNS('g'))
@@ -338,13 +313,58 @@ class RePresentDocument(inkinkex.InkEffect):
                     'id': "rePresent-master-global"
                 })
                 self.nodes['masters'].append(self.nodes['masterGlobal'])
-            setStyle(node, {
-                'display': "inherit"
-            })
             self.nodes['masterGlobal'].append(node)
         else:
-            sys.exit(_('Cannot move slide (id:%s). Type %s is unknown.' %
-                       node.get('id'), type))
+            self.nodes['masters'].append(node)
+
+    def createNodeLink(self, node):
+        u"""Creates a link element for a slide in the slides def layer."""
+        nodeLink = inkex.etree.Element(inkex.addNS('use'))
+        setAttributes(nodeLink, {
+            'clip-path': "url(#rePresent-slide-clip)",
+            NSS['xlink'] + 'href': '#' + node.get('id'),
+            'style': {'display': 'none'}
+        })
+        return nodeLink
+
+    def addSimpleSlide(self, node):
+        u"""Adds a single slide to the slides layer."""
+        index = self.getElementCount(self.nodes['slidesStack']) + 1
+        # store original node content
+        setStyle(node, {'display': 'inline'})
+        # node.append(node)
+        self.nodes['slides'].append(node)
+
+        # store link in slide order layer
+        if node.get('id') is None:
+            setAttributes(node, {
+                'id': 'rPs_' + str(random.randint(1, 10000))
+            })
+
+        nodeLink = self.createNodeLink(node)
+        setAttributes(nodeLink, {NSS['represent'] + 'index': str(index)})
+        self.nodes['slidesStack'].append(nodeLink)
+
+    def setNodeTypeAttrib(self, node, nodeType):
+        typeStr = ''
+        if (nodeType == self.NODE_TYPES['ngroup'] or
+                nodeType == self.NODE_TYPES['group']):
+            typeStr = 'group'
+        elif nodeType == self.NODE_TYPES['part']:
+            typeStr = 'part'
+        if len(typeStr):
+            setAttributes(node, {NSS['represent'] + 'type': typeStr})
+
+    def addGroupSlide(self, node, group, nodeType=None):
+        u"""Adds a slide to a slides group node."""
+        # store slide
+        self.nodes['slides'].append(node)
+        # create link
+        index = self.getElementCount(group) + 1
+        nodeLink = self.createNodeLink(node)
+        setAttributes(nodeLink, {NSS['represent'] + 'index': str(index)})
+        self.setNodeTypeAttrib(nodeLink, nodeType)
+        group.append(nodeLink)
 
     def filterNodes(self, nodeList, nodeType):
         nodes = []
@@ -353,20 +373,72 @@ class RePresentDocument(inkinkex.InkEffect):
                 nodes.append(node)
         return nodes
 
-    def addSlideGroup(self, label=""):
+    def createSlideGroup(self, parent=None, label=""):
         u"""Creates and adds a grouping node for slides to the slides layer."""
-        index = self.getElementCount(self.slidesOrder) + 1
+        if parent != None:
+            index = self.getElementCount(parent) + 1
+        else:
+            parent = self.nodes['slidesStack']
+            index = self.getElementCount(self.nodes['slidesStack']) + 1
         gNode = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(gNode, {
-            NSS['represent'] + 'type': "group",
             NSS['represent'] + 'index': str(index)
         })
+        self.setNodeTypeAttrib(gNode, self.NODE_TYPES['group'])
         if len(label):
             setAttributes(gNode, {
                 NSS['represent'] + 'label': label
             })
-        self.slidesOrder.append(gNode)
+        parent.append(gNode)
         return gNode
+
+    def parseSlidesGroup(self, node, nodeType):
+        group = None
+        # named groups may be empty (when used as bookmarks) so check
+        # beforehand
+        if nodeType == self.NODE_TYPES['ngroup']:
+            group = self.createSlideGroup(
+                label=node.get(NSS['inkscape'] + 'label'))
+        else:
+            group = self.createSlideGroup()
+
+        # get children of group like nodes
+        subNodes = self.getChildNodes(node)
+        if len(subNodes):
+            # check for local masters
+            masters = self.filterNodes(subNodes,
+                                       self.NODE_TYPES['master'])
+            for subNode, subNodeType in subNodes:
+                # skip master nodes, but move them
+                if subNodeType == self.NODE_TYPES['master']:
+                    self.addMasterSlide(subNode)
+                    continue
+                # skip non slides
+                if subNodeType != self.NODE_TYPES['slide']:
+                    continue
+
+                # add local masters
+                self.attachMasterSlide(masters, subNode)
+
+                # check for parts inside subnode
+                partNodes = self.filterNodes(self.getChildNodes(subNode),
+                                             self.NODE_TYPES['part'])
+                if len(partNodes):
+                    subGroup = self.createSlideGroup(parent=group)
+                    # wrap parent of the parts goup inside group
+                    self.addGroupSlide(subNode, subGroup)
+                    # parts are made of subnode + previous part content
+                    parts = []
+                    for partNode in partNodes:
+                        self.attachMasterSlide([subNode] + parts, partNode)
+                        # add parts to group
+                        self.addGroupSlide(partNode, subGroup,
+                                           nodeType=self.NODE_TYPES['part'])
+                        parts.append(partNode)
+                else:
+                    # add subnode as slide
+                    self.addGroupSlide(subNode, group)
+        setStyle(node, {'display': 'none'})
 
     def parseSlides(self):
         u"""Find and prepare all slides in the document."""
@@ -376,48 +448,13 @@ class RePresentDocument(inkinkex.InkEffect):
         # collect root master layers in a special global master layer
         for node, nodeType in rootNodes:
             if nodeType == self.NODE_TYPES['master']:
-                self.moveSlide(node, self.NODE_TYPES['gmaster'])
+                self.addMasterSlide(node, globalMaster=True)
             elif nodeType in (self.NODE_TYPES['slide'],
                               self.NODE_TYPES['part']):
-                self.moveSlide(node, nodeType)
+                self.addSimpleSlide(node)
             elif nodeType in (self.NODE_TYPES['ngroup'],
                               self.NODE_TYPES['other']):
-                group = None
-                # named groups may be empty (when used as bookmarks) so check
-                # beforehand
-                if nodeType == self.NODE_TYPES['ngroup']:
-                    group = self.addSlideGroup(
-                        node.get(NSS['inkscape'] + 'label'))
-                # get children of group like nodes
-                subNodes = self.getChildNodes(node)
-                if len(subNodes):
-                    # check for local masters
-                    masters = self.filterNodes(subNodes,
-                                               self.NODE_TYPES['master'])
-                    for subNode, subNodeType in subNodes:
-                        # skip master nodes, but move them
-                        if subNodeType == self.NODE_TYPES['master']:
-                            self.moveSlide(subNode, subNodeType)
-                            continue
-                        # skip non slides
-                        if subNodeType != self.NODE_TYPES['slide']:
-                            continue
-                        # add local masters
-                        self.attachMasterSlide(masters, subNode)
-                        # add subnode as slide
-                        self.moveSlide(subNode, subNodeType, group)
-                        # check for parts inside subnode
-                        partNodes = self.filterNodes(
-                            self.getChildNodes(subNode),
-                            self.NODE_TYPES['part'])
-                        # parts are made of subnode + previous part content
-                        parts = []
-                        for partNode in partNodes:
-                            self.attachMasterSlide([subNode] + parts, partNode)
-                            # TODO: mark these parts
-                            self.moveSlide(partNode, subNodeType, group)
-                            parts.append(partNode)
-                setStyle(node, {'display': 'none'})
+                self.parseSlidesGroup(node, nodeType)
 
         # finally link global master to slides (lowest order)
         self.attachGlobalMaster()

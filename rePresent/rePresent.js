@@ -1,6 +1,7 @@
 var RePresent = function() {
     NSS = {
-        'svg': "http://www.w3.org/2000/svg"
+        'svg': "http://www.w3.org/2000/svg",
+        'represent': "https://github.com/JensBee/rePresent"
     };
     KEYS = {
         'left': 37,
@@ -21,10 +22,10 @@ var RePresent = function() {
         }
     };
     var width = null;
-    // array of slides
+    // nested array of slides
     var slides = new Array();
-    // array index of active slide
-    var activeSlide = 0;
+    // active slide index
+    var activeSlide = [0, undefined, undefined];  // slide, group, part
     // current display mode
     var mode = MODES.slide;
     var timer = {
@@ -82,54 +83,222 @@ var RePresent = function() {
         };
     }
 
+    function isGroup(element) {
+        return element.getAttributeNS(NSS['represent'], 'type') == 'group';
+    }
+
+    function isPart(element) {
+        return element.getAttributeNS(NSS['represent'], 'type') == 'part';
+    }
+
+    function getElementsByTagnames(element, tags) {
+        var elements = element.childNodes;
+        var found = new Array();
+        for (var i=0; i<elements.length; i++) {
+            if (tags.indexOf(elements[i].nodeName.toLowerCase()) > -1) {
+                found.push(elements[i]);
+            }
+        }
+        return found;
+    }
+
     function collectSlides() {
-        var slidesNodes = document.getElementById(
-            'rePresent-slides-order').childNodes;
-        for(var slideElement=0, slideElements=slidesNodes.length;
-                slideElement<slideElements; slideElement++){
-            var node = slidesNodes[slideElement];
-            if (node.nodeName.toLowerCase() == 'g') {
-                var subSlidesNodes = node.childNodes;
-                for(var subSlideElement=0,
-                        subSlideElements=subSlidesNodes.length;
-                        subSlideElement<subSlideElements; subSlideElement++){
-                    var subNode = subSlidesNodes[subSlideElement];
-                    if (subNode.nodeName.toLowerCase() == 'use') {
-                        slides.push(subNode);
-                        addMouseHandler(subNode);
+        var e = getElementsByTagnames(document.getElementById(
+                                    'rePresent-slides-stack'), ['use', 'g']);
+        for (var i=0; i<e.length; i++) {
+            // check if e is group or slide
+            if (e[i].nodeName.toLowerCase() == 'g' && isGroup(e[i])) {
+                // check for nested groups & slides
+                var subSlides = new Array();
+                var eG = getElementsByTagnames(e[i], ['use', 'g']);
+                for (var j=0; j<eG.length; j++) {
+                    // if it's a group it may contain parts
+                    if (eG[j].nodeName.toLowerCase() == 'g' &&
+                            isGroup(eG[j])) {
+                        var partSlides = new Array();
+                        // get all parts
+                        var p = getElementsByTagnames(eG[j], ['use']);
+                        for (var k=0; k<p.length; k++) {
+                            // part inside group
+                            partSlides.push(p[k]);
+                        }
+                        subSlides.push(partSlides);
+                    } else {
+                        // simple slide inside group
+                        subSlides.push(eG[j]);
                     }
                 }
-            } else if (node.nodeName.toLowerCase() == 'use') {
-                slides.push(node);
-                addMouseHandler(node);
+                slides.push(subSlides);
+            } else {
+                // simple slide
+                slides.push(e[i]);
             }
+        }
+        console.log(slides);
+    }
+
+    function setSlideVis(idx, vis) {
+        // console.log(idx);
+        try {
+            if (idx[2] !== undefined) {
+                slides[idx[0]][idx[1]][idx[2]].style.display = vis;
+            } else if (idx[1] !== undefined) {
+                slides[idx[0]][idx[1]].style.display = vis;
+            } else if (idx[0] !== undefined) {
+                slides[idx[0]].style.display = vis;
+            }
+        } catch(e) {
+            console.log(e);
         }
     }
 
+    function isArray(obj) {
+        return Object.prototype.toString.call(obj) === '[object Array]';
+    }
+
+    function findNextSlide(idx, dir) {
+        var next = [];
+        console.log("----------------findNextSlide:");
+        console.log(idx);
+        // console.log(dir);
+
+        if (idx[2] !== undefined) {
+            // change on part level
+            if (dir > 0) {
+                // forward
+                if (slides[idx[0]][idx[1]][idx[2] + 1] !== undefined) {
+                    // next part is there
+                    console.log("part>>found");
+                    next = [idx[0], idx[1], idx[2] + 1];
+                } else {
+                    console.log("part>>none");
+                    next = findNextSlide([idx[0], idx[1]], dir);
+                }
+            } else {
+                // backwards
+                if (slides[idx[0]][idx[1]][idx[2] - 1] !== undefined) {
+                    console.log("part<<found");
+                    next = [idx[0], idx[1], idx[2] - 1];
+                } else {
+                    console.log("part<<none");
+                    next = findNextSlide([idx[0], idx[1]], dir);
+                }
+            }
+        } else if (idx[1] !== undefined) {
+            // change on group level
+            if (dir > 0) {
+                var nextSlide = slides[idx[0]][idx[1] + 1];
+                if (nextSlide !== undefined) {
+                    // next group found
+                    if (isArray(nextSlide)) {
+                        // jump to first slide in group
+                        console.log("group||slide>>found:array");
+                        next = [idx[0], idx[1] + 1, 0];
+                    } else {
+                        // single slide in group
+                        console.log("group||slide>>found");
+                        next = [idx[0], idx[1] + 1];
+                    }
+                } else {
+                    // no next group, try next slide
+                    console.log("group||slide>>none");
+                    next = findNextSlide([idx[0]], dir);
+                }
+            } else {
+                // backwards
+                var nextSlide = slides[idx[0]][idx[1] - 1];
+                if (nextSlide !== undefined) {
+                    // next group found
+                    console.log("group||slide<<found");
+                    if (isArray(nextSlide)) {
+                        // jump to last slide in group
+                        next = [idx[0], idx[1] - 1, nextSlide.length - 1];
+                    } else {
+                        // single slide in group
+                        next = [idx[0], idx[1] - 1];
+                    }
+                } else {
+                    // no next group, try next slide
+                    console.log("group||slide<<none");
+                    next = findNextSlide([idx[0]], dir);
+                }
+            }
+        } else {
+            if (dir > 0) {
+                var nextSlide = slides[idx[0] + 1];
+                if (nextSlide !== undefined) {
+                    // next slide found
+                    if (isArray(nextSlide)) {
+                        console.log("slide>>found:array");
+                        // slide is a group, try to jump to first slide
+                        next = findNextSlide([idx[0] + 1, -1], dir);
+                    } else {
+                        console.log("slide>>found");
+                        next = [idx[0] + 1];
+                    }
+                } else {
+                    // no next slide
+                    console.log("slide>>none");
+                    next = null;
+                }
+            } else {
+                // backwards
+                var nextSlide = slides[idx[0] - 1];
+                if (nextSlide !== undefined) {
+                    // next slide found
+                    if (isArray(nextSlide)) {
+                        console.log("slide<<found:array");
+                        // slide is a group, try to jump to first slide
+                        //next = findNextSlide([idx[0] - 1, nextSlide.length - 1], dir);
+                        next = [idx[0] - 1, nextSlide.length - 1];
+                    } else {
+                        console.log("slide<<found");
+                        next = [idx[0] - 1];
+                    }
+                } else {
+                    // no next slide
+                    console.log("slide<<none");
+                    next = null;
+                }
+            }
+        }
+        return next;
+    }
+
     function showSlide(param) {
-        // TODO: handle param.part
-        var nextSlide = activeSlide
+        var next = []; // if all fails: stay on current slide
+        var nextSlide = undefined;
 
         if (param.direction !== undefined) {
-            nextSlide = activeSlide + param.direction;
-        } else if (param.jumpTo !== undefined) {
-            nextSlide = param.jumpTo;
+            next = findNextSlide(activeSlide, param.direction);
+            console.log("Next");
+            console.log(next);
+        } else if (param.slide !== undefined) {
+            next[0] = param.slide;
+            if (param.group !== undefined) {
+                next[1] = param.group;
+                if (param.part !== undefined) {
+                    next[2] = param.part;
+                }
+                 else {
+                    next[2] = 0;
+                }
+            }
+        }
+        else {
+            // no slide given - start from root
+            next = findNextSlide([-1], 1);
         }
 
-        // check bounds
-        if (nextSlide > (slides.length - 1)) {
-            nextSlide = slides.length - 1;
-        } else if (nextSlide < 0) {
-            nextSlide = 0;
+        if (next !== null) {
+            console.log("=====");
+            console.log(next);
+            setSlideVis(next, 'inherit');
+            setSlideVis(activeSlide, 'none');
+            activeSlide = next;
         }
 
-        // any changes? direct jump?
-        if (nextSlide != activeSlide || typeof param.jumpTo !== undefined) {
-            slides[activeSlide].style.display = 'none';
-            slides[nextSlide].style.display = 'inherit';
-            activeSlide = nextSlide;
-            updateProgressBar();
-        }
+        return;
     }
 
     function updateProgressBar() {
@@ -209,8 +378,7 @@ var RePresent = function() {
 
     /** Handle navigational keys. */
     this.keydown = function(e) {
-        direction = undefined;
-        // TODO: any efx, etc. should be stopped here
+        var direction = null;
         e = e || window.event;
         switch(e.keyCode) {
             case KEYS['right']:
@@ -222,7 +390,7 @@ var RePresent = function() {
                 direction = -1;
                 break;
         }
-        if (typeof direction !== undefined) {
+        if (direction !== null) {
             showSlide({direction: direction});
         }
     }
@@ -245,23 +413,24 @@ var RePresent = function() {
     this.getSlidesFromUrl = function() {
         var hash = window.location.hash;
         var currentSlide = new Array();
-        currentSlide[0] = 0;
+        currentSlide[0] = undefined;
         currentSlide[1] = undefined;
+        currentSlide[2] = undefined;
         if (typeof hash !== undefined) {
             var slides = hash.replace('#', '').split('_');
             // set main slide
-            if (!isNaN(slides[0])) {
+            if (slides[0] != '' && !isNaN(slides[0])) {
+                // console.log("url: slide: " + slides[0]);
                 currentSlide[0] = parseInt(slides[0]);
                 // set part, if any
-                if (typeof slides[1] !== undefined && !isNaN(slides[1])) {
+                if (!isNaN(slides[1])) {
+                    // console.log("url: group: " + slides[1]);
                     currentSlide[1] = parseInt(slides[1]);
-                } else {
-                    currentSlide[1] = undefined;
+                    if (!isNaN(slides[2])) {
+                        // console.log("url: part: " + slides[2]);
+                        currentSlide[2] = parseInt(slides[2]);
+                    }
                 }
-            } else {
-                // none set - default to first slide
-                currentSlide[0] = 0;
-                currentSlide[1] = undefined;
             }
         }
         // none set - default to first slide
@@ -280,8 +449,9 @@ var RePresent = function() {
 
         var currentSlide = this.getSlidesFromUrl();
         showSlide({
-            jumpTo: currentSlide[0],
-            part: currentSlide[1]
+            slide: currentSlide[0],
+            group: currentSlide[1],
+            part: currentSlide[2]
         });
     };
 }
