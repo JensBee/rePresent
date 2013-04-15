@@ -22,6 +22,8 @@ import sys
 import json
 _ = inkex._
 
+VERSION = "0.1"
+
 NS = u"https://github.com/JensBee/rePresent"
 NSS = {
     'inkscape': '{' + inkex.NSS['inkscape'] + '}',
@@ -180,6 +182,7 @@ class RePresentDocument(inkinkex.InkEffect):
     def prepareSvg(self):
         u"""Add some elements needed for structuring the presentation."""
         root = self.document.getroot()
+        setAttributes(root, {NSS['represent'] + 'version': VERSION})
 
         # set the background color
         baseNode = root.xpath('//sodipodi:namedview[@id="base"]',
@@ -290,12 +293,16 @@ class RePresentDocument(inkinkex.InkEffect):
                 for slide in slides[0].iterchildren(tag=NSS['svg'] + 'g'):
                     self.attachMasterSlide(self.nodes['masterGlobal'], slide)
 
+    def getElementCount(self, root):
+        return len(root.xpath('*'))
+
     def moveSlide(self, node, nodeType, group=None):
         u"""Moves a slide node of a given type to the appropriate layer. Also
         links slide nodes to the slide layer and add additial metadata for
         presentation."""
         if nodeType == self.NODE_TYPES['slide']:
             # store original node content
+            index = self.getElementCount(self.slidesOrder) + 1
             setStyle(node, {'display': 'inline'})
             node.append(node)
             self.nodes['slides'].append(node)
@@ -308,9 +315,13 @@ class RePresentDocument(inkinkex.InkEffect):
             setAttributes(nodeLink, {
                 'clip-path': "url(#rePresent-slide-clip)",
                 NSS['xlink'] + 'href': '#' + node.get('id'),
-                'style': {'display': 'none'}
+                'style': {'display': 'none'},
+                NSS['represent'] + 'index': str(index)
             })
             if group is not None:
+                index = self.getElementCount(group) + 1
+                setAttributes(nodeLink,
+                              {NSS['represent'] + 'index': str(index)})
                 group.append(nodeLink)
             else:
                 self.slidesOrder.append(nodeLink)
@@ -344,9 +355,11 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def addSlideGroup(self, label=""):
         u"""Creates and adds a grouping node for slides to the slides layer."""
+        index = self.getElementCount(self.slidesOrder) + 1
         gNode = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(gNode, {
-            NSS['represent'] + 'type': "group"
+            NSS['represent'] + 'type': "group",
+            NSS['represent'] + 'index': str(index)
         })
         if len(label):
             setAttributes(gNode, {
@@ -355,8 +368,8 @@ class RePresentDocument(inkinkex.InkEffect):
         self.slidesOrder.append(gNode)
         return gNode
 
-    def getMasterSlides(self):
-        u"""Find all master slides in the document."""
+    def parseSlides(self):
+        u"""Find and prepare all slides in the document."""
         # collect nodes on first tier
         rootNodes = self.getChildNodes(self.document.getroot())
 
@@ -417,10 +430,12 @@ class RePresentDocument(inkinkex.InkEffect):
             node.getparent().remove(node)
         # add our current version
         scriptNode = inkex.etree.Element(inkex.addNS('script', 'svg'))
+        setAttributes(scriptNode, {'type': 'text/ecmascript'})
         script = open(os.path.join(
             os.path.dirname(__file__), "rePresent.js")).read()
         script = script.replace(
             'rePresent.init()', 'rePresent.init(%s)' % json.dumps(self.config))
+        # scriptNode.text = "<![CDATA[\n%s\n]]>" % script
         scriptNode.text = script
         setAttributes(scriptNode, {
             'id': "rePresent-script"
@@ -571,9 +586,9 @@ class RePresentDocument(inkinkex.InkEffect):
     def effect(self):
         # content reordering
         self.prepareSvg()
-        self.getMasterSlides()
+        self.parseSlides()
         # content replacement/compression
-        self.text2path()
+        # self.text2path()
         # final
         self.cleanSvg()
         self.addScript()

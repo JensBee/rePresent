@@ -73,6 +73,15 @@ var RePresent = function() {
         }
     }
 
+    function addMouseHandler(node) {
+        node.onmouseover = function(e) {
+            this.style.opacity = 1;
+        };
+        node.onmouseout = function(e) {
+            this.style.opacity = 0.7;
+        };
+    }
+
     function collectSlides() {
         var slidesNodes = document.getElementById(
             'rePresent-slides-order').childNodes;
@@ -87,10 +96,12 @@ var RePresent = function() {
                     var subNode = subSlidesNodes[subSlideElement];
                     if (subNode.nodeName.toLowerCase() == 'use') {
                         slides.push(subNode);
+                        addMouseHandler(subNode);
                     }
                 }
             } else if (node.nodeName.toLowerCase() == 'use') {
                 slides.push(node);
+                addMouseHandler(node);
             }
         }
     }
@@ -144,6 +155,7 @@ var RePresent = function() {
         if (mode === MODES.index) { // switch back to slide mode
             for (var count=0; count<slides.length; count++) {
                 slides[count].removeAttribute('transform');
+                slides[count].style.opacity = 1;
                 // hide all but the current slide
                 if (count !== activeSlide) {
                     slides[count].style.display = 'none';
@@ -163,6 +175,7 @@ var RePresent = function() {
                     'scale(' + scale + ') translate(' +
                         x + ',' + y + ')');
                 slides[count].style.display = 'inherit';
+                slides[count].style.opacity = 0.7;
                 // mark the current slide
                 if (count === activeSlide) {
                     index.selectedSlide = activeSlide;
