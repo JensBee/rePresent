@@ -219,7 +219,7 @@ class RePresentDocument(inkinkex.InkEffect):
         clipNode.append(rectNode)
         defs.append(clipNode)
 
-        # all masters will be stored in one layer for later referencing
+        # all local masters will be stored in one layer for later referencing
         self.nodes['masters'] = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.nodes['masters'], {
                       'id': "rePresent-slides-masters",
@@ -234,6 +234,14 @@ class RePresentDocument(inkinkex.InkEffect):
             'style': {'display': 'none'}
         })
         defs.append(self.nodes['slides'])
+
+        # all global masters will be stored in one layer used as background
+        self.nodes['masterGlobal'] = inkex.etree.Element(inkex.addNS('g'))
+        setAttributes(self.nodes['masterGlobal'], {
+                      'id': "rePresent-slides-gmaster",
+                      'style': {'display': 'inline'}
+                      })
+        root.append(self.nodes['masterGlobal'])
 
         # display order of slides is stored in a seperate layer
         self.nodes['slidesStack'] = inkex.etree.Element(inkex.addNS('g'))
@@ -290,12 +298,14 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def attachGlobalMaster(self):
         u"""Attach the global master to all slides"""
-        if self.nodes['masterGlobal'] is not None:
-            slides = self.document.xpath('//g[@id="rePresent-slides"]',
-                                         namespaces=inkex.NSS)
-            if len(slides):
-                for slide in slides[0].iterchildren(tag=NSS['svg'] + 'g'):
-                    self.attachMasterSlide(self.nodes['masterGlobal'], slide)
+        # TODO: move master in seperate layer
+        # if self.nodes['masterGlobal'] is not None:
+        #     slides = self.document.xpath('//g[@id="rePresent-slides"]',
+        #                                  namespaces=inkex.NSS)
+        #     if len(slides):
+        #         for slide in slides[0].iterchildren(tag=NSS['svg'] + 'g'):
+        #             self.attachMasterSlide(self.nodes['masterGlobal'],
+        #                                    slide)
 
     def getElementCount(self, root):
         return len(root.xpath('*'))
@@ -306,13 +316,13 @@ class RePresentDocument(inkinkex.InkEffect):
         setStyle(node, {'display': "inherit"})
         if globalMaster:
             # node is a global master for all slides
-            if self.nodes['masterGlobal'] is None:
-                self.nodes['masterGlobal'] = inkex.etree.Element(
-                    inkex.addNS('g'))
-                setAttributes(self.nodes['masterGlobal'], {
-                    'id': "rePresent-master-global"
-                })
-                self.nodes['masters'].append(self.nodes['masterGlobal'])
+            # if self.nodes['masterGlobal'] is None:
+            #     self.nodes['masterGlobal'] = inkex.etree.Element(
+            #         inkex.addNS('g'))
+            #     setAttributes(self.nodes['masterGlobal'], {
+            #         'id': "rePresent-master-global"
+            #     })
+            #     self.nodes['masters'].append(self.nodes['masterGlobal'])
             self.nodes['masterGlobal'].append(node)
         else:
             self.nodes['masters'].append(node)
@@ -327,13 +337,16 @@ class RePresentDocument(inkinkex.InkEffect):
         })
         return nodeLink
 
+    def storeSlide(self, node):
+        u"""Add node to the slides def layer and set needed properties."""
+        setStyle(node, {'display': 'inline'})
+        self.nodes['slides'].append(node)
+
     def addSimpleSlide(self, node):
         u"""Adds a single slide to the slides layer."""
         index = self.getElementCount(self.nodes['slidesStack']) + 1
         # store original node content
-        setStyle(node, {'display': 'inline'})
-        # node.append(node)
-        self.nodes['slides'].append(node)
+        self.storeSlide(node)
 
         # store link in slide order layer
         if node.get('id') is None:
@@ -358,7 +371,7 @@ class RePresentDocument(inkinkex.InkEffect):
     def addGroupSlide(self, node, group, nodeType=None):
         u"""Adds a slide to a slides group node."""
         # store slide
-        self.nodes['slides'].append(node)
+        self.storeSlide(node)
         # create link
         index = self.getElementCount(group) + 1
         nodeLink = self.createNodeLink(node)
@@ -430,7 +443,8 @@ class RePresentDocument(inkinkex.InkEffect):
                     # parts are made of subnode + previous part content
                     parts = []
                     for partNode in partNodes:
-                        self.attachMasterSlide([subNode] + parts, partNode)
+                        # self.attachMasterSlide([subNode] + parts, partNode)
+                        # self.attachMasterSlide([subNode], partNode)
                         # add parts to group
                         self.addGroupSlide(partNode, subGroup,
                                            nodeType=self.NODE_TYPES['part'])
