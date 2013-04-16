@@ -41,6 +41,24 @@ var RePresent = function() {
     // local configuration
     var config = {};
 
+    var hooks = ['slideChanged', 'viewChanged'];
+
+    this.registerHook = function(hook, callback) {
+        if (typeof hooks[hook] == 'undefined') {
+            console.log("Tried to register unknown hook '"+hook+"'.");
+        } else {
+            hooks[hook].push(callback);
+        }
+    }
+
+    function triggerHook(hook, args) {
+        if (typeof hooks[hook] == 'undefined') {
+            for (var i=0; i<hooks[hook].length; i++) {
+                hooks[hook][i](args);
+            }
+        }
+    }
+
     function collectSlides() {
         var e = util.getElementsByTagnames(document.getElementById(
                                     'rePresent-slides-stack'), ['use', 'g']);
@@ -83,11 +101,11 @@ var RePresent = function() {
     function getSlide(idx) {
         slide = null;
         try {
-            if (idx[2] !== undefined) {
+            if (idx[2] !== 'undefined') {
                 slide = slides[idx[0]][idx[1]][idx[2]];
-            } else if (idx[1] !== undefined) {
+            } else if (idx[1] !== 'undefined') {
                 slide = slides[idx[0]][idx[1]];
-            } else if (idx[0] !== undefined) {
+            } else if (idx[0] !== 'undefined') {
                 slide = slides[idx[0]];
             }
         } catch(e) {
@@ -101,19 +119,19 @@ var RePresent = function() {
     function findNextSlide(idx, dir) {
         var next = [];
 
-        if (idx[2] !== undefined) {
+        if (idx[2] !== 'undefined') {
             // change on part level
-            if (slides[idx[0]][idx[1]][idx[2] + dir] !== undefined) {
+            if (slides[idx[0]][idx[1]][idx[2] + dir] !== 'undefined') {
                 // next/previous part in group
                 next = [idx[0], idx[1], idx[2] + dir];
             } else {
                 // no next/previous part found, try next/previous group
                 next = findNextSlide([idx[0], idx[1]], dir);
             }
-        } else if (idx[1] !== undefined) {
+        } else if (idx[1] !== 'undefined') {
             // change on group level
             var nextSlide = slides[idx[0]][idx[1] + dir];
-            if (nextSlide !== undefined) {
+            if (nextSlide !== 'undefined') {
                 if (util.isArray(nextSlide)) {
                     if (dir > 0) {
                         // forward: first slide in next group
@@ -133,7 +151,7 @@ var RePresent = function() {
         } else {
             // change on slide level
             var nextSlide = slides[idx[0] + dir];
-            if (nextSlide !== undefined) {
+            if (nextSlide !== 'undefined') {
                 if (util.isArray(nextSlide)) {
                     if (dir > 0) {
                         // forward: slide is a group, try to jump to first slide
@@ -154,15 +172,15 @@ var RePresent = function() {
 
     function showSlide(param) {
         var next = [];
-        var nextSlide = undefined;
+        var nextSlide = null;
 
-        if (param.direction !== undefined) {
+        if (param.direction !== 'undefined') {
             next = findNextSlide(activeSlide, param.direction);
-        } else if (param.slide !== undefined) {
+        } else if (param.slide !== 'undefined') {
             next[0] = param.slide;
-            if (param.group !== undefined) {
+            if (param.group !== 'undefined') {
                 next[1] = param.group;
-                if (param.part !== undefined) {
+                if (param.part !== 'undefined') {
                     next[2] = param.part;
                 }
                  else {
@@ -233,7 +251,7 @@ var RePresent = function() {
     }
 
     /** Handle function keys. */
-    RePresent.handleKeyPress = function(e) {
+    this.handleKeyPress = function(e) {
         var charCode = e.which || e.keyCode;
         switch(String.fromCharCode(charCode)) {
             case 'd':
@@ -249,7 +267,7 @@ var RePresent = function() {
     }
 
     /** Handle navigational keys. */
-    RePresent.handleKeyDown = function(e) {
+    this.handleKeyDown = function(e) {
         var direction = null;
         switch(e.keyCode) {
             case KEYS['right']:
@@ -287,7 +305,7 @@ var RePresent = function() {
         currentSlide[0] = undefined;
         currentSlide[1] = undefined;
         currentSlide[2] = undefined;
-        if (typeof hash !== undefined) {
+        if (typeof hash !== 'undefined') {
             var slides = hash.replace('#', '').split('_');
             // set main slide
             if (slides[0] != '' && !isNaN(slides[0])) {
@@ -305,7 +323,7 @@ var RePresent = function() {
         return currentSlide;
     }
 
-    RePresent.init = function(userConfig) {
+    this.init = function(userConfig) {
         util = new RePresent.Util();
         progress = new RePresent.Progress();
         progress.init();
@@ -326,13 +344,9 @@ var RePresent = function() {
             part: currentSlide[2]
         });
     };
-
-    return RePresent;
 }
 
 RePresent.Util = function() {
-    this.init = function() {}
-
     this.isArray = function(obj) {
         return Object.prototype.toString.call(obj) === '[object Array]';
     }
