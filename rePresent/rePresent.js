@@ -16,41 +16,51 @@ var RePresent = function() {
     /** Find the next slide we want to display.
     @param element to start the search at
     @param <0 for backwards, >0 for forward search */
-    function findNextSlide(element, direction) {
+    function findNextSlide(element, direction, hasNewParent) {
+        console.log("findNextSlide: e:%o d:%o p:%o",element,direction,hasNewParent);
         if (element == null) {
             return null;
         }
         var slide = null;
         var sFunc; // search function
+        var nextSlide = null;
 
         if (direction > 0) { // forward search
             sFunc = RePresent.Util.getNextNode;
-            nextSlide = null;
             slide = element;
         } else { // backwards search
             sFunc = RePresent.Util.getPrevNode;
-            slide = sFunc(element, e.slidesStack.id);
+            var prevNode = sFunc(element, e.slidesStack.id);
+            slide = prevNode.node;
+            hasNewParent = hasNewParent || prevNode.hasNewParent;
         }
 
+        console.log("findNextSlide: slide:%o active:%o",slide,activeSlide);
+
+        var sfResult;
         if (RePresent.Util.isGroup(slide)) {
             // a group
             var children = slide.children;
             if (children.length > 0) {
                 // group with children
-                nextSlide = findNextSlide(children[0], direction);
+                nextSlide = findNextSlide(children[0], direction, hasNewParent);
             } else {
-                nextSlide = findNextSlide(sFunc(slide, e.slidesStack.id),
-                                          direction);
+                sfResult = sFunc(slide, e.slidesStack.id);
+                nextSlide = findNextSlide(sfResult.node, direction,
+                                          sfResult.hasNewParent);
             }
         } else {
             // slide
             nextSlide = slide;
             if (nextSlide === activeSlide) {
-                nextSlide = findNextSlide(sFunc(slide, e.slidesStack.id),
-                                          direction);
+                sfResult = sFunc(slide, e.slidesStack.id)
+                nextSlide = findNextSlide(sfResult.node, direction,
+                                          sfResult.hasNewParent);
             }
         }
-        return nextSlide;
+        data = {node: nextSlide}
+        console.log("findNextSlide -> %o", data);
+        return data;
     }
 
     function showSlide(param) {
@@ -64,17 +74,31 @@ var RePresent = function() {
             nextSlide = findNextSlide(e.slidesStack.children[0], 1);
         }
 
+        console.log("changeSlide -> %o",{
+                'currentSlide': activeSlide,
+                'nextSlide': nextSlide.node,
+                'hasNewParent': nextSlide.hasNewParent
+            });
+
+
         if (nextSlide != null) {
             // trigger slide switching hooks
             triggerHook('changeSlide', {
                 'currentSlide': activeSlide,
-                'nextSlide': nextSlide,
+                'nextSlide': nextSlide.node,
+                'hasNewParent': nextSlide.hasNewParent
             });
-            activeSlide = nextSlide;
+            activeSlide = nextSlide.node;
             triggerHook('slide', nextSlide);
-            triggerHook('slideChanged', {
-                'currentSlide': activeSlide,
+            console.log("slideChanged -> %o",{
+                'currentSlide': nextSlide.node,
                 'previousSlide': prevSlide,
+                'hasNewParent': nextSlide.hasNewParent
+            });
+            triggerHook('slideChanged', {
+                'currentSlide': nextSlide.node,
+                'previousSlide': prevSlide,
+                'hasNewParent': nextSlide.hasNewParent
             });
         }
     }
@@ -223,24 +247,47 @@ RePresent.Util = {
         return conf;
     },
 
+    _getNode: function(element, stopId, direction, newParent) {
+        if (element.id == stopId) {
+            return null;
+        }
+
+        newParent = newParent || false;
+
+        var sibling;
+        if (direction > 0) { // forward
+            sibling = element.nextSibling;
+        } else { // backwards
+            sibling = element.previousSibling;
+        }
+
+        if (sibling === null) {
+            var parentNode = element.parentNode;
+            newParent = true;
+            if (parentNode === null) {
+                sibling = null;
+            } else {
+                sibling = RePresent.Util._getNode(parentNode, stopId,
+                                                     newParent);
+            }
+        }
+        console.log("_getNode: %o", {
+            dir: direction,
+            node: sibling,
+            hasNewParent: newParent
+        });
+        return {
+            node: sibling,
+            hasNewParent: newParent
+        };
+    },
+
     /** Iteratively get the previous.
     * @param The element to start at
     * @param Id of an element to stop iteration at.
     */
     getPrevNode: function(element, stopId) {
-        if (element.id == stopId) {
-            return null;
-        }
-        var sibling = element.previousSibling;
-        if (sibling === null) {
-            var parentNode = element.parentNode;
-            if (parentNode === null) {
-                sibling = null;
-            } else {
-                sibling = RePresent.Util.getPrevNode(parentNode, stopId);
-            }
-        }
-        return sibling;
+        return RePresent.Util._getNode(element, stopId, -1);
     },
 
     /** Iteratively get the next node.
@@ -248,19 +295,7 @@ RePresent.Util = {
     * @param Id of an element to stop iteration at.
     */
     getNextNode: function(element, stopId) {
-        if (element.id == stopId) {
-            return null;
-        }
-        var sibling = element.nextSibling;
-        if (sibling === null) {
-            var parentNode = element.parentNode;
-            if (parentNode === null) {
-                sibling = null;
-            } else {
-                sibling = RePresent.Util.getNextNode(parentNode, stopId);
-            }
-        }
-        return sibling;
+        return RePresent.Util._getNode(element, stopId, +1);
     }
 }
 
