@@ -388,7 +388,7 @@ class RePresentDocument(inkinkex.InkEffect):
 
     def createSlideGroup(self, parent=None, label=""):
         u"""Creates and adds a grouping node for slides to the slides layer."""
-        if parent != None:
+        if parent is not None:
             index = self.getElementCount(parent) + 1
         else:
             parent = self.nodes['slidesStack']
@@ -485,8 +485,7 @@ class RePresentDocument(inkinkex.InkEffect):
         script = open(os.path.join(
             os.path.dirname(__file__), "rePresent.js")).read()
         script = script.replace(
-            'rePresent.init()', 'rePresent.init(%s)' % json.dumps(self.config))
-        # scriptNode.text = "<![CDATA[\n%s\n]]>" % script
+            'userConf = {};', 'userConf = %s;' % json.dumps(self.config))
         scriptNode.text = script
         setAttributes(scriptNode, {
             'id': "rePresent-script"
