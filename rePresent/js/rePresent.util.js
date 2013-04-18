@@ -50,14 +50,11 @@ RePresent.Util = {
 
     /** Filter child nodes by tag names.
     * @param node wich children should be examinated
-    * @param array of wanted tagnames (all lowercase) */
+    * @param array of wanted tagnames */
     getElementsByTagnames: function(element, tags) {
-        var elements = element.childNodes;
         var found = new Array();
-        for (var i=0; i<elements.length; i++) {
-            if (tags.indexOf(elements[i].nodeName.toLowerCase()) > -1) {
-                found.push(elements[i]);
-            }
+        for (var i=0; i<tags.length; i++) {
+            found = found.concat(element.getElementsByTagName(tags[i]));
         }
         return found;
     },
@@ -151,7 +148,7 @@ RePresent.Util = {
 
     /** Iteratively get the previous.
     * @param The element to start at
-    * @param Id of an element to stop iteration at.
+    * @param Id of an element to stop iteration at
     */
     getPrevNode: function(element, stopId) {
         return RePresent.Util._getNode(element, stopId, -1);
@@ -159,30 +156,38 @@ RePresent.Util = {
 
     /** Iteratively get the next node.
     * @param The element to start at
-    * @param Id of an element to stop iteration at.
+    * @param Id of an element to stop iteration at
     */
     getNextNode: function(element, stopId) {
         return RePresent.Util._getNode(element, stopId, +1);
     },
 
+    /** Get the id of a slide.
+    @param Slide to get the id for */
     getSlideId: function(element) {
         return element.getAttributeNS(RePresent.Util.NSS.xlink, 'href');
     },
 
     /** Find the next slide we want to display.
     @param object with:
-        - element: element to start the search at
-        - currentElement: element currently displayed
-        - direction: <0 for backwards, >0 for forward search
-        - noIncrement: if true the function will operate on the current node,
-            instead of incrementing/decrementing */
+        - element: element to start the search at. Required.
+        - currentElement: Element currently displayed. Required.
+        - direction: <0 for backwards, >0 for forward search. Optional,
+            defaults to forward.
+        - noIncrement: If true the function will operate on the current node,
+            instead of incrementing/decrementing. Optional, defaults to false. */
     findNextSlide: function(param) {
+        console.log("findNextSlide <- %o",param);
         if (param.element == null) {
             return null;
         }
         var slide = null;
         var sFunc; // search function
         var nextSlide = null;
+
+        if (typeof param.direction == 'undefined') {
+            param.direction = +1;
+        }
 
         if (typeof param.noIncrement == 'undefined' || !param.noIncrement) {
             if (param.direction > 0) { // forward search
@@ -238,7 +243,7 @@ RePresent.Util = {
                 });
             }
         }
-        // console.log("findNextSlide -> %o", nextSlide);
+        console.log("findNextSlide -> %o",nextSlide);
         return nextSlide;
     },
 
