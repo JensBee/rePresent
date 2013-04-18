@@ -82,7 +82,7 @@ var RePresent = function() {
                 });
             }
         }
-        console.log("findNextSlide -> %o", nextSlide);
+        // console.log("findNextSlide -> %o", nextSlide);
         return nextSlide;
     }
 
@@ -142,12 +142,8 @@ var RePresent = function() {
             element: e.slidesStack.children[0],
             direction: +1
         });
-        console.log("Looking for slide with id %o. Starting at %o", id, slide);
         while(!found) {
-            console.log("checking slide %o", slide);
             if (slide === null) {
-                console.log("Slide was null. Stopping (id:%o, slide:%o)",
-                            id, slide);
                 found = true;
             } else {
                 if (RePresent.Util.getSlideId(slide) == id) {
@@ -161,14 +157,12 @@ var RePresent = function() {
                 }
             }
         }
-        console.log("Found slide %o", slide);
         return slide;
     }
 
     /** Get the slide to display from the URL. */
     function getSlideFromUrl() {
         var hash = window.location.hash;
-        console.log("locHash: %o", hash);
         if (typeof hash !== undefined && hash != '') {
             return getSlideById(hash);
         }
