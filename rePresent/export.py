@@ -95,7 +95,8 @@ class RePresentDocument(inkinkex.InkEffect):
         'ngroup': 2,
         'part': 3,
         'slide': 4,
-        'group': 5
+        'group': 5,
+        'partParent': 6
     }
 
     def __init__(self):
@@ -359,12 +360,17 @@ class RePresentDocument(inkinkex.InkEffect):
         self.nodes['slidesStack'].append(nodeLink)
 
     def setNodeTypeAttrib(self, node, nodeType):
+        u"""Set an identificational attribute to some node types. These types
+        are needed for the presentation script to properly identify node
+        behaviour."""
         typeStr = ''
         if (nodeType == self.NODE_TYPES['ngroup'] or
                 nodeType == self.NODE_TYPES['group']):
             typeStr = 'group'
         elif nodeType == self.NODE_TYPES['part']:
             typeStr = 'part'
+        elif nodeType == self.NODE_TYPES['partParent']:
+            typeStr = 'partParent'
         if len(typeStr):
             setAttributes(node, {NSS['represent'] + 'type': typeStr})
 
@@ -439,7 +445,8 @@ class RePresentDocument(inkinkex.InkEffect):
                 if len(partNodes):
                     subGroup = self.createSlideGroup(parent=group)
                     # wrap parent of the parts goup inside group
-                    self.addGroupSlide(subNode, subGroup)
+                    self.addGroupSlide(subNode, subGroup,
+                                       nodeType=self.NODE_TYPES['partParent'])
                     # parts are made of subnode + previous part content
                     parts = []
                     for partNode in partNodes:
