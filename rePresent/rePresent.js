@@ -3,7 +3,7 @@ var RePresent = function() {
     RePresent.NS = "https://github.com/JensBee/rePresent";
 
     // active slide element
-    var activeSlide;
+    var activeSlide = null;
     // known hooks
     var hooks = [
         'changeSlide', // just before a slide will change
@@ -14,68 +14,104 @@ var RePresent = function() {
     var e;
 
     /** Find the next slide we want to display.
-    @param element to start the search at
-    @param <0 for backwards, >0 for forward search
-    @param if true the function will operate on the current node, instead
-        of incrementing/decrementing */
-    function findNextSlide(element, direction, noIncrement) {
-        if (element == null) {
+    @param object with:
+        - element: element to start the search at
+        - currentElement: element currently displayed
+        - direction: <0 for backwards, >0 for forward search
+        - noIncrement: if true the function will operate on the current node,
+            instead of incrementing/decrementing */
+    function findNextSlide(param) {
+        if (param.element == null) {
             return null;
         }
         var slide = null;
         var sFunc; // search function
         var nextSlide = null;
 
-        if (typeof noIncrement == 'undefined' || !noIncrement) {
-            if (direction > 0) { // forward search
+        if (typeof param.noIncrement == 'undefined' || !param.noIncrement) {
+            if (param.direction > 0) { // forward search
                 sFunc = RePresent.Util.getNextNode;
-                slide = element;
+                slide = param.element;
             } else { // backwards search
                 sFunc = RePresent.Util.getPrevNode;
-                slide = sFunc(element, e.slidesStack.id);
+                slide = sFunc(param.element, e.slidesStack.id);
             }
         } else {
-            slide = element;
+            slide = param.element;
         }
 
         if (RePresent.Util.isGroup(slide)) {
             // a group
             var children = slide.children;
+            // store id of current group
             if (children.length > 0) {
                 // group with children
-                if (direction > 0) {
-                    nextSlide = findNextSlide(children[0], direction);
+                if (param.direction > 0) {
+                    nextSlide = findNextSlide({
+                        element: children[0],
+                        currentElement: param.currentElement,
+                        direction: param.direction
+                    });
                 } else {
                     nextSlide = children[children.length -1];
                     if (RePresent.Util.isGroup(nextSlide)) {
                         // check contents, don't decrement node
-                        nextSlide = findNextSlide(nextSlide, direction, true);
+                        nextSlide = findNextSlide({
+                            element: nextSlide,
+                            currentElement: param.currentElement,
+                            direction: param.direction,
+                            noIncrement: true
+                        });
                     }
                 }
             } else {
-                nextSlide = findNextSlide(sFunc(slide, e.slidesStack.id),
-                                          direction);
+                nextSlide = findNextSlide({
+                    element: sFunc(slide, e.slidesStack.id),
+                    currentElement: param.currentElement,
+                    direction: param.direction
+                });
             }
         } else {
             // a slide
             nextSlide = slide;
-            if (nextSlide === activeSlide) {
-                nextSlide = findNextSlide(sFunc(slide, e.slidesStack.id),
-                                          direction);
+            if (nextSlide === param.currentElement) {
+                nextSlide = findNextSlide({
+                    element: sFunc(slide, e.slidesStack.id),
+                    currentElement: param.currentElement,
+                    direction: param.direction
+                });
             }
         }
+        console.log("findNextSlide -> %o", nextSlide);
         return nextSlide;
     }
 
     function showSlide(param) {
         var prevSlide = activeSlide;
-        if (param.direction !== undefined) {
-            nextSlide = findNextSlide(activeSlide, param.direction);
-        } else if (param.slide !== undefined) {
-            console.error("param.slide currently not implemented!");
+        var nextSlide = null;
+        var jump = false;
+        if (typeof param !== 'undefined') {
+            if (param.direction !== undefined) {
+                nextSlide = findNextSlide({
+                    element: activeSlide,
+                    currentElement: activeSlide,
+                    direction: param.direction
+                });
+            } else if (param.slide !== undefined) {
+                nextSlide = param.slide;
+                jump = true;
+            }
         } else {
+            // default to forward moving
+            param = {direction: +1};
+        }
+        if (nextSlide == null) {
             // start from first slide
-            nextSlide = findNextSlide(e.slidesStack.children[0], 1);
+            nextSlide = findNextSlide({
+                element: e.slidesStack.children[0],
+                currentElement: activeSlide,
+                direction: +1
+            });
         }
 
         if (nextSlide != null) {
@@ -83,41 +119,60 @@ var RePresent = function() {
             triggerHook('changeSlide', {
                 'currentSlide': activeSlide,
                 'nextSlide': nextSlide,
-                'direction': param.direction
+                'direction': param.direction,
+                'jump': jump
             });
             activeSlide = nextSlide;
+            window.location.hash = RePresent.Util.getSlideId(activeSlide);
             triggerHook('slide', nextSlide);
             triggerHook('slideChanged', {
                 'currentSlide': nextSlide,
                 'previousSlide': prevSlide,
-                'direction': param.direction
+                'direction': param.direction,
+                'jump': jump
             });
         }
     }
 
-    /** Get the slide to display from the URL. */
-    function getSlidesFromUrl() {
-        var hash = window.location.hash;
-        var currentSlide = new Array();
-        currentSlide[0] = undefined;
-        currentSlide[1] = undefined;
-        currentSlide[2] = undefined;
-        if (typeof hash !== undefined) {
-            var slides = hash.replace('#', '').split('_');
-            // set main slide
-            if (slides[0] != '' && !isNaN(slides[0])) {
-                currentSlide[0] = parseInt(slides[0]);
-                // set part, if any
-                if (!isNaN(slides[1])) {
-                    currentSlide[1] = parseInt(slides[1]);
-                    if (!isNaN(slides[2])) {
-                        currentSlide[2] = parseInt(slides[2]);
-                    }
+        /** Get a specific slide by given link id.
+    @param The id of the linked slide */
+    function getSlideById(id) {
+        var found = false;
+        var slide = findNextSlide({
+            element: e.slidesStack.children[0],
+            direction: +1
+        });
+        console.log("Looking for slide with id %o. Starting at %o", id, slide);
+        while(!found) {
+            console.log("checking slide %o", slide);
+            if (slide === null) {
+                console.log("Slide was null. Stopping (id:%o, slide:%o)",
+                            id, slide);
+                found = true;
+            } else {
+                if (RePresent.Util.getSlideId(slide) == id) {
+                    found = true;
+                } else {
+                    slide = findNextSlide({
+                        element: slide,
+                        currentElement: slide,
+                        direction: +1
+                    });
                 }
             }
         }
-        // none set - default to first slide
-        return currentSlide;
+        console.log("Found slide %o", slide);
+        return slide;
+    }
+
+    /** Get the slide to display from the URL. */
+    function getSlideFromUrl() {
+        var hash = window.location.hash;
+        console.log("locHash: %o", hash);
+        if (typeof hash !== undefined && hash != '') {
+            return getSlideById(hash);
+        }
+        return null;
     }
 
     /** Trigger a hook.
@@ -161,17 +216,21 @@ var RePresent = function() {
         };
         viewBox = RePresent.Util.getViewBoxDimesion();
 
-        var currentSlide = getSlidesFromUrl();
-        showSlide({
-            slide: currentSlide[0],
-            group: currentSlide[1],
-            part: currentSlide[2]
-        });
+        var slide = getSlideFromUrl();
+        if (slide != null) {
+            showSlide({slide: slide})
+        } else {
+            showSlide();
+        }
     }
 }
 
 /** General utility class. */
 RePresent.Util = {
+    NSS: {
+        xlink: 'http://www.w3.org/1999/xlink'
+    },
+
     isArray: function(obj) {
         return Object.prototype.toString.call(obj) === '[object Array]';
     },
@@ -327,6 +386,10 @@ RePresent.Util = {
     */
     getNextNode: function(element, stopId) {
         return RePresent.Util._getNode(element, stopId, +1);
+    },
+
+    getSlideId: function(element) {
+        return element.getAttributeNS(RePresent.Util.NSS.xlink, 'href');
     }
 }
 
@@ -375,8 +438,8 @@ RePresent.Stage = function() {
             // hide current slide
             RePresent.Util.hideElement(param.currentSlide);
 
-            // we stepped back in a part: show all previous sibling
-            if (param.direction < 0 && (
+            // we stepped back in/jumped into a part: show all previous sibling
+            if ((param.direction < 0 || param.jump) && (
                     RePresent.Util.isPart(param.nextSlide) ||
                         RePresent.Util.isPartParent(param.nextSlide))) {
                 nodes.visible = nodes.visible.concat(
