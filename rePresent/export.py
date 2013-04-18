@@ -481,7 +481,7 @@ class RePresentDocument(inkinkex.InkEffect):
         self.attachGlobalMaster()
 
     def addScript(self):
-        u"""Insert the javascript."""
+        u"""Insert javascript files."""
         # remove any old scripts
         for node in self.document.xpath('//svg:script[@id="rePresent-script"]',
                                         namespaces=inkex.NSS):
@@ -489,10 +489,23 @@ class RePresentDocument(inkinkex.InkEffect):
         # add our current version
         scriptNode = inkex.etree.Element(inkex.addNS('script', 'svg'))
         setAttributes(scriptNode, {'type': 'text/ecmascript'})
-        script = open(os.path.join(
-            os.path.dirname(__file__), "rePresent.js")).read()
-        script = script.replace(
-            'userConf = {};', 'userConf = %s;' % json.dumps(self.config))
+
+        # include all javascript files
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'js')
+        script = ""
+        # include base class first
+        baseClass = open(os.path.join(path, "rePresent.js")).read()
+        script += baseClass.replace('userConf = {};', 'userConf = %s;' %
+                                    json.dumps(self.config))
+        # inlude all sub-classes
+        for files in os.listdir(path):
+            if (files == "rePresent.js" or files == "main.js"):
+                continue
+            elif files.endswith(".js"):
+                script += open(os.path.join(path, files)).read()
+        # include main initialization file
+        script += open(os.path.join(path, "main.js")).read()
+
         scriptNode.text = script
         setAttributes(scriptNode, {
             'id': "rePresent-script"
