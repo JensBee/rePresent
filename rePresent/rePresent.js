@@ -19,7 +19,6 @@ var RePresent = function() {
     @param if true the function will operate on the current node, instead
         of incrementing/decrementing */
     function findNextSlide(element, direction, noIncrement) {
-        // console.log("findNextSlide: e:%o d:%o",element,direction);
         if (element == null) {
             return null;
         }
@@ -65,7 +64,6 @@ var RePresent = function() {
                                           direction);
             }
         }
-        // console.log("findNextSlide -> %o", nextSlide);
         return nextSlide;
     }
 
@@ -80,12 +78,6 @@ var RePresent = function() {
             nextSlide = findNextSlide(e.slidesStack.children[0], 1);
         }
 
-        // console.log("changeSlide -> %o",{
-        //         'currentSlide': activeSlide,
-        //         'nextSlide': nextSlide,
-        //     });
-
-
         if (nextSlide != null) {
             // trigger slide switching hooks
             triggerHook('changeSlide', {
@@ -95,11 +87,6 @@ var RePresent = function() {
             });
             activeSlide = nextSlide;
             triggerHook('slide', nextSlide);
-            // console.log("slideChanged -> %o",{
-            //     'currentSlide': nextSlide,
-            //     'previousSlide': prevSlide,
-            //     'direction': param.direction
-            // });
             triggerHook('slideChanged', {
                 'currentSlide': nextSlide,
                 'previousSlide': prevSlide,
@@ -137,10 +124,8 @@ var RePresent = function() {
     @param The hook to trigger
     @param parameters to pass on to the registered functions */
     function triggerHook(hook, args) {
-        // console.log("Fire: "+hook);
         if (hooks.indexOf(hook) != -1 && hooks[hook] !== undefined) {
             for (var i=0; i<hooks[hook].length; i++) {
-                // console.log("fire ("+hook+")");
                 hooks[hook][i](args);
             }
         }
@@ -156,6 +141,9 @@ var RePresent = function() {
         showSlide({direction: -1});
     }
 
+    /** Allows to register foreign functions for hooks triggerd by RePresent.
+    @param Hook to register for
+    @param Callback function to call */
     this.registerHook = function(hook, callback) {
         if (hooks.indexOf(hook) == -1) {
             console.warn("Tried to register unknown hook '"+hook+"'.");
@@ -163,7 +151,6 @@ var RePresent = function() {
             if (hooks[hook] === undefined) {
                 hooks[hook] = new Array();
             }
-            // console.debug("Registered %o for hook: "+hook, callback);
             hooks[hook].push(callback);
         }
     }
