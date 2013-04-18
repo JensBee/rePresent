@@ -11,80 +11,9 @@ var RePresent = function() {
         'slideChanged' // slide just changed
     ];
     // important elements
-    var e;
-
-    /** Find the next slide we want to display.
-    @param object with:
-        - element: element to start the search at
-        - currentElement: element currently displayed
-        - direction: <0 for backwards, >0 for forward search
-        - noIncrement: if true the function will operate on the current node,
-            instead of incrementing/decrementing */
-    function findNextSlide(param) {
-        if (param.element == null) {
-            return null;
-        }
-        var slide = null;
-        var sFunc; // search function
-        var nextSlide = null;
-
-        if (typeof param.noIncrement == 'undefined' || !param.noIncrement) {
-            if (param.direction > 0) { // forward search
-                sFunc = RePresent.Util.getNextNode;
-                slide = param.element;
-            } else { // backwards search
-                sFunc = RePresent.Util.getPrevNode;
-                slide = sFunc(param.element, e.slidesStack.id);
-            }
-        } else {
-            slide = param.element;
-        }
-
-        if (RePresent.Util.isGroup(slide)) {
-            // a group
-            var children = slide.children;
-            // store id of current group
-            if (children.length > 0) {
-                // group with children
-                if (param.direction > 0) {
-                    nextSlide = findNextSlide({
-                        element: children[0],
-                        currentElement: param.currentElement,
-                        direction: param.direction
-                    });
-                } else {
-                    nextSlide = children[children.length -1];
-                    if (RePresent.Util.isGroup(nextSlide)) {
-                        // check contents, don't decrement node
-                        nextSlide = findNextSlide({
-                            element: nextSlide,
-                            currentElement: param.currentElement,
-                            direction: param.direction,
-                            noIncrement: true
-                        });
-                    }
-                }
-            } else {
-                nextSlide = findNextSlide({
-                    element: sFunc(slide, e.slidesStack.id),
-                    currentElement: param.currentElement,
-                    direction: param.direction
-                });
-            }
-        } else {
-            // a slide
-            nextSlide = slide;
-            if (nextSlide === param.currentElement) {
-                nextSlide = findNextSlide({
-                    element: sFunc(slide, e.slidesStack.id),
-                    currentElement: param.currentElement,
-                    direction: param.direction
-                });
-            }
-        }
-        // console.log("findNextSlide -> %o", nextSlide);
-        return nextSlide;
-    }
+    var e = {
+        'slidesStack': document.getElementById('rePresent-slides-stack'),
+    };
 
     function showSlide(param) {
         var prevSlide = activeSlide;
@@ -92,7 +21,7 @@ var RePresent = function() {
         var jump = false;
         if (typeof param !== 'undefined') {
             if (param.direction !== undefined) {
-                nextSlide = findNextSlide({
+                nextSlide = RePresent.Util.findNextSlide({
                     element: activeSlide,
                     currentElement: activeSlide,
                     direction: param.direction
@@ -107,7 +36,7 @@ var RePresent = function() {
         }
         if (nextSlide == null) {
             // start from first slide
-            nextSlide = findNextSlide({
+            nextSlide = RePresent.Util.findNextSlide({
                 element: e.slidesStack.children[0],
                 currentElement: activeSlide,
                 direction: +1
@@ -134,37 +63,11 @@ var RePresent = function() {
         }
     }
 
-        /** Get a specific slide by given link id.
-    @param The id of the linked slide */
-    function getSlideById(id) {
-        var found = false;
-        var slide = findNextSlide({
-            element: e.slidesStack.children[0],
-            direction: +1
-        });
-        while(!found) {
-            if (slide === null) {
-                found = true;
-            } else {
-                if (RePresent.Util.getSlideId(slide) == id) {
-                    found = true;
-                } else {
-                    slide = findNextSlide({
-                        element: slide,
-                        currentElement: slide,
-                        direction: +1
-                    });
-                }
-            }
-        }
-        return slide;
-    }
-
     /** Get the slide to display from the URL. */
     function getSlideFromUrl() {
         var hash = window.location.hash;
         if (typeof hash !== undefined && hash != '') {
-            return getSlideById(hash);
+            return RePresent.Util.getSlideById(hash);
         }
         return null;
     }
@@ -205,9 +108,6 @@ var RePresent = function() {
     }
 
     this.init = function(config) {
-        e = {
-            'slidesStack': document.getElementById('rePresent-slides-stack'),
-        };
         viewBox = RePresent.Util.getViewBoxDimesion();
 
         var slide = getSlideFromUrl();
@@ -223,6 +123,10 @@ var RePresent = function() {
 RePresent.Util = {
     NSS: {
         xlink: 'http://www.w3.org/1999/xlink'
+    },
+    // important elements
+    e: {
+        'slidesStack': document.getElementById('rePresent-slides-stack'),
     },
 
     isArray: function(obj) {
@@ -384,6 +288,105 @@ RePresent.Util = {
 
     getSlideId: function(element) {
         return element.getAttributeNS(RePresent.Util.NSS.xlink, 'href');
+    },
+
+        /** Find the next slide we want to display.
+    @param object with:
+        - element: element to start the search at
+        - currentElement: element currently displayed
+        - direction: <0 for backwards, >0 for forward search
+        - noIncrement: if true the function will operate on the current node,
+            instead of incrementing/decrementing */
+    findNextSlide: function(param) {
+        if (param.element == null) {
+            return null;
+        }
+        var slide = null;
+        var sFunc; // search function
+        var nextSlide = null;
+
+        if (typeof param.noIncrement == 'undefined' || !param.noIncrement) {
+            if (param.direction > 0) { // forward search
+                sFunc = RePresent.Util.getNextNode;
+                slide = param.element;
+            } else { // backwards search
+                sFunc = RePresent.Util.getPrevNode;
+                slide = sFunc(param.element, RePresent.Util.e.slidesStack.id);
+            }
+        } else {
+            slide = param.element;
+        }
+
+        if (RePresent.Util.isGroup(slide)) {
+            // a group
+            var children = slide.children;
+            // store id of current group
+            if (children.length > 0) {
+                // group with children
+                if (param.direction > 0) {
+                    nextSlide = RePresent.Util.findNextSlide({
+                        element: children[0],
+                        currentElement: param.currentElement,
+                        direction: param.direction
+                    });
+                } else {
+                    nextSlide = children[children.length -1];
+                    if (RePresent.Util.isGroup(nextSlide)) {
+                        // check contents, don't decrement node
+                        nextSlide = RePresent.Util.findNextSlide({
+                            element: nextSlide,
+                            currentElement: param.currentElement,
+                            direction: param.direction,
+                            noIncrement: true
+                        });
+                    }
+                }
+            } else {
+                nextSlide = RePresent.Util.findNextSlide({
+                    element: sFunc(slide, RePresent.Util.e.slidesStack.id),
+                    currentElement: param.currentElement,
+                    direction: param.direction
+                });
+            }
+        } else {
+            // a slide
+            nextSlide = slide;
+            if (nextSlide === param.currentElement) {
+                nextSlide = RePresent.Util.findNextSlide({
+                    element: sFunc(slide, RePresent.Util.e.slidesStack.id),
+                    currentElement: param.currentElement,
+                    direction: param.direction
+                });
+            }
+        }
+        // console.log("findNextSlide -> %o", nextSlide);
+        return nextSlide;
+    },
+
+    /** Get a specific slide by given link id.
+    @param The id of the linked slide */
+    getSlideById: function(id) {
+        var found = false;
+        var slide = RePresent.Util.findNextSlide({
+            element: RePresent.Util.e.slidesStack.children[0],
+            direction: +1
+        });
+        while(!found) {
+            if (slide === null) {
+                found = true;
+            } else {
+                if (RePresent.Util.getSlideId(slide) == id) {
+                    found = true;
+                } else {
+                    slide = RePresent.Util.findNextSlide({
+                        element: slide,
+                        currentElement: slide,
+                        direction: +1
+                    });
+                }
+            }
+        }
+        return slide;
     }
 }
 
@@ -396,7 +399,7 @@ RePresent.Stage = function() {
         index: 1 // slides index view
     };
     // current display mode
-    var mode;
+    var mode = MODES.slide;
     // stores parent -> child association to properly show stacked parts
     var nodes = {
         lastParent: null, // parent of current shown slide
@@ -450,8 +453,9 @@ RePresent.Stage = function() {
     }
 
     /** Toggle display of the slides index view. */
-    function toggleIndex() {
+    this.toggleIndex = function() {
         if (mode === MODES.index) { // switch back to slide mode
+            console.log("toggle index OFF");
             for (var count=0; count<slides.length; count++) {
                 slides[count].removeAttribute('transform');
                 slides[count].style.opacity = 1;
@@ -462,6 +466,7 @@ RePresent.Stage = function() {
             }
             mode = MODES.slide;
         } else { // show index mode
+            console.log("toggle index ON");
             var offset = [0, 0];
             var space = (conf.index.spacing / 100) * width;
             // calc real space from percentage value
