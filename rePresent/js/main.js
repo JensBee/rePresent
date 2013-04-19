@@ -10,7 +10,8 @@ window.onload = function() {
         index: {
             columns: 4,
             spacing: 5, // percentage of slide width
-            selectColor: 'black',
+            selectColor: 'red',
+            frame: '#ccc',
             selectSize: 5
         }
     };

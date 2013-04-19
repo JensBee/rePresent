@@ -107,7 +107,7 @@ var RePresent = function() {
     }
 
     this.init = function(config) {
-        viewBox = RePresent.Util.getViewBoxDimesion();
+        viewBox = RePresent.Util.getViewBoxDimension();
 
         var slide = getSlideFromUrl();
         if (slide != null) {

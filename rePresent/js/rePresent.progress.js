@@ -4,6 +4,7 @@ TODO: rewrite to use hooks.
 RePresent.Progress = function() {
     var timer; // progress timer state
     var e; // some frequent used elements
+    var width;
 
     this.init = function(config) {
         timer = {
@@ -12,9 +13,69 @@ RePresent.Progress = function() {
             elapsed: 0,
             start: 0
         };
+
+        // create base layer
+        var eMain = document.createElement('g');
+        eMain.id = 'rePresent-progress';
+        document.documentElement.appendChild(eMain);
+        RePresent.Util.Element.hide(eMain);
+        width = RePresent.Util.getViewBoxDimension()[0];
+
+        // create progressbar
+        var ePBar = document.createElement('rect');
+        ePBar.id = 'rePresent-progress-bar';
+        RePresent.Util.Element.setAttributes(ePBar, {
+            style: {
+                fill: "rgb(128, 128, 128)",
+                marker: 'none',
+                stroke: 'none'
+            },
+            x: 0,
+            y: (0.995 * height),
+            width: 0,
+            height: (0.005 * height)
+        });
+        eMain.appendChild(ePBar);
+        RePresent.Util.Element.hide(ePBar);
+
+        // create start / end markers
+        var ePStart = document.createElement('rect');
+        RePresent.Util.Element.setAttributes(ePStart, {
+            style: {
+                fill: "rgb(128, 128, 128)",
+                marker: 'none',
+                stroke: 'none'
+            },
+            x: (width - 3),
+            y: (0.98 * height),
+            width: 3,
+            height: (0.01 * height)
+        });
+        ePStart.id = "rePresent-progress-start";
+        eMain.appendChild(ePStart);
+        var ePEnd = ePStart.cloneNode();
+        ePEnd.setAttribute('x', "0");
+        ePEnd.id = "rePresent-progress-final";
+        eMain.appendChild(ePEnd);
+
+        // create timer symbol
+        var ePTimer = ePBar.cloneNode();
+        RePresent.Util.Element.setAttributes(ePTimer, {
+            id: "rePresent-progress-timer",
+            style: {
+                fill: "rgb(0,0,0)",
+                display: 'none'
+            },
+            width: (0.01 * height),
+            height: (ePBar.getAttribute('height') * 1.5),
+            y: (ePBar.getAttribute('y') - (ePBar.getAttribute('height') * 0.5))
+        });
+        eMain.appendChild(ePTimer);
+
+        // important elements
         e = {
-            progress: document.getElementById('rePresent-progress'),
-            progressBar: document.getElementById('rePresent-progress-bar'),
+            progress: eMain,
+            progressBar: ePBar,
             progressTimer: document.getElementById("rePresent-progress-timer")
         };
     }

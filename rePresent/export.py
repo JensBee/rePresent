@@ -12,7 +12,6 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see http://www.gnu.org/licenses/.
 
-from copy import deepcopy
 import random
 import inkex
 import inkinkex
@@ -32,7 +31,6 @@ NSS = {
     'xlink': '{' + inkex.NSS['xlink'] + '}',
     'represent': '{' + NS + '}'
 }
-err_file = open("/tmp/inkscape_rps_efx.txt", 'w')  # DBG
 
 CSS_FONT_ATTRIBUTES = ['-inkscape-font-specification',
                        'font-family',
@@ -114,73 +112,73 @@ class RePresentDocument(inkinkex.InkEffect):
         u"""Write the final document."""
         self.document.write(sys.stdout)
 
-    def createProgressIndicator(self):
-        u"""Create an element providing a progressbar and a time indicator"""
-        root = self.document.getroot()
-        # get drawing size
-        size = (root.get('width'), root.get('height'))
+    # def createProgressIndicator(self):
+    #     u"""Create an element providing a progressbar and a time indicator"""
+    #     root = self.document.getroot()
+    # get drawing size
+    #     size = (root.get('width'), root.get('height'))
 
-        # progress container
-        progress = inkex.etree.Element(inkex.addNS('g'))
-        setAttributes(progress, {
-            'id': "rePresent-progress",
-            'style': {'display': 'none'},
-        })
+    # progress container
+    #     progress = inkex.etree.Element(inkex.addNS('g'))
+    #     setAttributes(progress, {
+    #         'id': "rePresent-progress",
+    #         'style': {'display': 'none'},
+    #     })
 
-        # progressbae
-        progressBar = inkex.etree.Element(inkex.addNS('rect'))
-        setAttributes(progressBar, {
-            'id': "rePresent-progress-bar",
-            'style': {
-                'fill': "rgb(128, 128, 128)",
-                'marker': 'none',
-                'stroke': 'none'
-            },
-            'x': "0",
-            'y': str(0.995 * float(size[1])),
-            'width': "0",
-            'height': str(0.005 * float(size[1]))
-        })
-        progress.append(progressBar)
+    # progressbae
+    #     progressBar = inkex.etree.Element(inkex.addNS('rect'))
+    #     setAttributes(progressBar, {
+    #         'id': "rePresent-progress-bar",
+    #         'style': {
+    #             'fill': "rgb(128, 128, 128)",
+    #             'marker': 'none',
+    #             'stroke': 'none'
+    #         },
+    #         'x': "0",
+    #         'y': str(0.995 * float(size[1])),
+    #         'width': "0",
+    #         'height': str(0.005 * float(size[1]))
+    #     })
+    #     progress.append(progressBar)
 
-        # progress start/end point marker
-        progressFinalStart = inkex.etree.Element(inkex.addNS('rect'))
-        setAttributes(progressFinalStart, {
-            'id': "rePresent-progress-final",
-            'style': {
-                'fill': "rgb(128, 128, 128)",
-                'marker': 'none',
-                'stroke': 'none'
-            },
-            'x': str(float(size[0]) - 3),
-            'y': str(0.98 * float(size[1])),
-            'width': "3",
-            'height': str(0.01 * float(size[1]))
-        })
-        progressFinalEnd = deepcopy(progressFinalStart)
-        setAttributes(progressFinalEnd, {
-            'id': "rePresent-progress-final",
-            'x': "0"
-        })
-        progress.append(progressFinalStart)
-        progress.append(progressFinalEnd)
+    # progress start/end point marker
+    #     progressFinalStart = inkex.etree.Element(inkex.addNS('rect'))
+    #     setAttributes(progressFinalStart, {
+    #         'id': "rePresent-progress-final",
+    #         'style': {
+    #             'fill': "rgb(128, 128, 128)",
+    #             'marker': 'none',
+    #             'stroke': 'none'
+    #         },
+    #         'x': str(float(size[0]) - 3),
+    #         'y': str(0.98 * float(size[1])),
+    #         'width': "3",
+    #         'height': str(0.01 * float(size[1]))
+    #     })
+    #     progressFinalEnd = deepcopy(progressFinalStart)
+    #     setAttributes(progressFinalEnd, {
+    #         'id': "rePresent-progress-final",
+    #         'x': "0"
+    #     })
+    #     progress.append(progressFinalStart)
+    #     progress.append(progressFinalEnd)
 
-        # time indicator
-        timer = deepcopy(progressBar)
-        setAttributes(timer, {
-            'id': "rePresent-progress-timer",
-            'style': {
-                'fill': "rgb(0, 0, 0)",
-                'display': 'none'
-            },
-            'width': str(0.01 * float(size[1])),
-            'height': str(float(progressBar.attrib['height']) * 1.5),
-            'y': str(float(progressBar.attrib['y']) -
-                     (float(progressBar.attrib['height']) * 0.5))
-        })
-        progress.append(timer)
+    # time indicator
+    #     timer = deepcopy(progressBar)
+    #     setAttributes(timer, {
+    #         'id': "rePresent-progress-timer",
+    #         'style': {
+    #             'fill': "rgb(0, 0, 0)",
+    #             'display': 'none'
+    #         },
+    #         'width': str(0.01 * float(size[1])),
+    #         'height': str(float(progressBar.attrib['height']) * 1.5),
+    #         'y': str(float(progressBar.attrib['y']) -
+    #                  (float(progressBar.attrib['height']) * 0.5))
+    #     })
+    #     progress.append(timer)
 
-        return progress
+    #     return progress
 
     def prepareSvg(self):
         u"""Add some elements needed for structuring the presentation."""
@@ -253,7 +251,7 @@ class RePresentDocument(inkinkex.InkEffect):
         root.append(self.nodes['slidesStack'])
 
         # append the progress indicator
-        root.append(self.createProgressIndicator())
+        # root.append(self.createProgressIndicator())
 
         # finally add a viewbox for scaling
         setAttributes(root, {
@@ -526,10 +524,6 @@ class RePresentDocument(inkinkex.InkEffect):
                 # skip character replacement, if there are any sub-style we
                 # can't handle
                 skip = True
-            err_file.write("[" + textNode.get("id") + "] !>" +
-                           newText.encode('utf8') + "<! {" +
-                           str(textNode.get("style")) + "} [" +
-                           str(skip) + "]\n")
             text += newText
         return (text, skip)
 
@@ -577,9 +571,6 @@ class RePresentDocument(inkinkex.InkEffect):
             if text != "":
                 textmap[node.get("id")] = (text.replace(
                     " ", ""), stylesum, skipReplace)
-                err_file.write("TXT[" + node.get("id") + "] >>" + text.encode(
-                    'utf8') + "<< {" + stylesum + "} [" +
-                    str(skipReplace) + "]\n")
 
         # Convert objects to paths
         self.call_inkscape("ObjectToPath", textmap.keys())
@@ -650,8 +641,6 @@ class RePresentDocument(inkinkex.InkEffect):
                         INKSCAPE_KEEP_ATTRIBUTES) or
                         attrName.startswith(NSS['sodipodi'])):
                     del element.attrib[attrName]
-                    err_file.write("DEL[" + node.get(
-                        "id") + "] >>" + attrName.encode('utf8') + "\n")
 
     def effect(self):
         # content reordering
@@ -662,7 +651,6 @@ class RePresentDocument(inkinkex.InkEffect):
         # final
         self.cleanSvg()
         self.addScript()
-        err_file.close()
 
 rpDoc = RePresentDocument()
 rpDoc.affect()
