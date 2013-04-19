@@ -1,7 +1,5 @@
 /** RePresent base class. */
 var RePresent = function() {
-    RePresent.NS = "https://github.com/JensBee/rePresent";
-
     // active slide element
     var activeSlide = null;
     // known hooks
@@ -21,7 +19,7 @@ var RePresent = function() {
         var jump = false;
         if (typeof param !== 'undefined') {
             if (param.direction !== undefined) {
-                nextSlide = RePresent.Util.findNextSlide({
+                nextSlide = RePresent.Util.Slide.findNext({
                     element: activeSlide,
                     currentElement: activeSlide,
                     direction: param.direction
@@ -35,7 +33,7 @@ var RePresent = function() {
             // default to forward moving
             param = {direction: +1};
             // start from first slide
-            nextSlide = RePresent.Util.findNextSlide({
+            nextSlide = RePresent.Util.Slide.findNext({
                 element: e.slidesStack.children[0],
                 currentElement: activeSlide,
                 direction: +1
@@ -53,7 +51,7 @@ var RePresent = function() {
                 'jump': jump
             });
             activeSlide = nextSlide;
-            window.location.hash = RePresent.Util.getSlideId(activeSlide);
+            window.location.hash = RePresent.Util.Slide.getId(activeSlide);
             triggerHook('slide', nextSlide);
             triggerHook('slideChanged', {
                 'currentSlide': nextSlide,
@@ -68,7 +66,7 @@ var RePresent = function() {
     function getSlideFromUrl() {
         var hash = window.location.hash;
         if (typeof hash !== undefined && hash != '') {
-            return RePresent.Util.getSlideById(hash);
+            return RePresent.Util.Slide.getById(hash);
         }
         return null;
     }

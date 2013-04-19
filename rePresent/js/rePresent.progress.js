@@ -21,7 +21,7 @@ RePresent.Progress = function() {
 
     /** Toggle display of the time and progress bar. */
     this.toggleVisibility = function() {
-        RePresent.Util.toggleVisibility(e.progress);
+        RePresent.Util.Element.toggleVisibility(e.progress);
     }
 
     /** Update presentation progress.

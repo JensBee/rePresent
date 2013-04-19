@@ -14,41 +14,43 @@ RePresent.Stage = function() {
         // children (parts) of the parent of the current slide wich are visible
         visible: []
     };
+    var slidesCount;
 
     this.init = function(config) {
         conf = config;
         width = RePresent.Util.getViewBoxDimesion[0];
         mode = MODES.slide;
+        var slides = RePresent.Util.Slide.count;
     }
 
     this.changeSlide = function(param) {
         var newParent = param.nextSlide.parentNode;
         if (newParent === nodes.lastParent &&
-                (RePresent.Util.isPart(param.nextSlide) ||
-                    RePresent.Util.isPartParent(param.nextSlide))) {
+                (RePresent.Util.Element.isPart(param.nextSlide) ||
+                    RePresent.Util.Element.isPartParent(param.nextSlide))) {
             if (param.direction > 0) { // forward
                 // add current node, wich is part-type to the list
                 nodes.visible.push(param.nextSlide);
             } else { // backwards
                 // we are in a part group: hide only last shown element
                 var gPart = nodes.visible.pop();
-                RePresent.Util.hideElement(gPart);
+                RePresent.Util.Element.hide(gPart);
             }
         } else {
             for (var i=0; i<nodes.visible.length; i++) {
-                RePresent.Util.hideElement(nodes.visible[i]);
+                RePresent.Util.Element.hide(nodes.visible[i]);
             }
             nodes.visible = new Array();
 
             // hide current slide
-            RePresent.Util.hideElement(param.currentSlide);
+            RePresent.Util.Element.hide(param.currentSlide);
 
             // we stepped back in/jumped into a part: show all previous sibling
             if ((param.direction < 0 || param.jump) && (
-                    RePresent.Util.isPart(param.nextSlide) ||
-                        RePresent.Util.isPartParent(param.nextSlide))) {
+                    RePresent.Util.Element.isPart(param.nextSlide) ||
+                        RePresent.Util.Element.isPartParent(param.nextSlide))) {
                 nodes.visible = nodes.visible.concat(
-                            RePresent.Util.showPreviousParts(param.nextSlide));
+                            RePresent.Util.Slide.showPreviousParts(param.nextSlide));
             }
 
             // store current node
@@ -57,7 +59,7 @@ RePresent.Stage = function() {
             nodes.lastParent = newParent;
         }
         // show new slide
-        RePresent.Util.showElement(param.nextSlide);
+        RePresent.Util.Element.show(param.nextSlide);
     }
 
     /** Toggle display of the slides index view. */
