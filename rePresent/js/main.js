@@ -10,8 +10,6 @@ window.onload = function() {
         index: {
             columns: 4,
             spacing: 5, // percentage of slide width
-            currentFrame: 'red',
-            frame: '#ccc',
             selectSize: 5
         }
     };
@@ -19,6 +17,7 @@ window.onload = function() {
     var config = {};
     // key codes
     var KEYS = {
+        'return': 13,
         'left': 37,
         'up': 38,
         'right': 39,
@@ -38,6 +37,12 @@ window.onload = function() {
     document.onkeydown = function(e) {
         e = e || window.event;
         switch(e.keyCode) {
+            case KEYS['return']:
+                if (rePresentStage.getMode() == 'index') {
+                    var slide = rePresentStage.selectIndexSlide();
+                    rePresent.showSlide(slide);
+                }
+                break;
             case KEYS['right']:
                 if (rePresentStage.getMode() == 'index') {
                     rePresentStage.navIndex({direction: 'right'});
@@ -56,14 +61,14 @@ window.onload = function() {
                 if (rePresentStage.getMode() == 'index') {
                     rePresentStage.navIndex({direction: 'left'});
                 } else {
-                    rePresent.nextSlide();
+                    rePresent.prevSlide();
                 }
                 break;
             case KEYS['up']:
                 if (rePresentStage.getMode() == 'index') {
                     rePresentStage.navIndex({direction: 'up'});
                 } else {
-                    rePresent.nextSlide();
+                    rePresent.prevSlide();
                 }
                 break;
         }

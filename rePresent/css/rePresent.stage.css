@@ -1,0 +1,9 @@
+#rePresent-slides-index-raster rect {
+    stroke: black;
+    stroke-width: 2px;
+    fill: none;
+}
+
+#rePresent-slides-index-raster rect.selected {
+    stroke: red;
+}

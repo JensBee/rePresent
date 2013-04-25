@@ -1,0 +1,4 @@
+#rePresent-slides-stack use.slide {
+    display:none;
+    clip-path:url(#rePresent-slide-clip);
+}

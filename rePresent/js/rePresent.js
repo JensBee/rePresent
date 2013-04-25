@@ -29,7 +29,7 @@ var RePresent = function() {
                 jump = true;
             }
         } else {
-            console.log("showSlide: param undefined!");
+            // console.log("showSlide: param undefined!");
             // default to forward moving
             param = {direction: +1};
             // start from first slide
@@ -40,7 +40,7 @@ var RePresent = function() {
             });
         }
 
-        console.log("showSlide ==> %o", nextSlide);
+        // console.log("showSlide ==> %o", nextSlide);
 
         if (nextSlide != null) {
             // trigger slide switching hooks
@@ -90,6 +90,10 @@ var RePresent = function() {
     /** Step back slide forward. */
     this.prevSlide = function() {
         showSlide({direction: -1});
+    }
+
+    this.showSlide = function(slide) {
+        showSlide({slide: slide});
     }
 
     /** Allows to register foreign functions for hooks triggerd by RePresent.

@@ -80,10 +80,6 @@ class RePresentDocument(inkinkex.InkEffect):
         'index': {
             # spacing between slides in index view
             'spacing': "10",
-            # frame color of selected slide
-            'selectColor': "red",
-            # size of selected slide frame
-            'selectSize': "2"
         }
     }
     NODE_TYPES = {
@@ -111,74 +107,6 @@ class RePresentDocument(inkinkex.InkEffect):
     def output(self):
         u"""Write the final document."""
         self.document.write(sys.stdout)
-
-    # def createProgressIndicator(self):
-    #     u"""Create an element providing a progressbar and a time indicator"""
-    #     root = self.document.getroot()
-    # get drawing size
-    #     size = (root.get('width'), root.get('height'))
-
-    # progress container
-    #     progress = inkex.etree.Element(inkex.addNS('g'))
-    #     setAttributes(progress, {
-    #         'id': "rePresent-progress",
-    #         'style': {'display': 'none'},
-    #     })
-
-    # progressbae
-    #     progressBar = inkex.etree.Element(inkex.addNS('rect'))
-    #     setAttributes(progressBar, {
-    #         'id': "rePresent-progress-bar",
-    #         'style': {
-    #             'fill': "rgb(128, 128, 128)",
-    #             'marker': 'none',
-    #             'stroke': 'none'
-    #         },
-    #         'x': "0",
-    #         'y': str(0.995 * float(size[1])),
-    #         'width': "0",
-    #         'height': str(0.005 * float(size[1]))
-    #     })
-    #     progress.append(progressBar)
-
-    # progress start/end point marker
-    #     progressFinalStart = inkex.etree.Element(inkex.addNS('rect'))
-    #     setAttributes(progressFinalStart, {
-    #         'id': "rePresent-progress-final",
-    #         'style': {
-    #             'fill': "rgb(128, 128, 128)",
-    #             'marker': 'none',
-    #             'stroke': 'none'
-    #         },
-    #         'x': str(float(size[0]) - 3),
-    #         'y': str(0.98 * float(size[1])),
-    #         'width': "3",
-    #         'height': str(0.01 * float(size[1]))
-    #     })
-    #     progressFinalEnd = deepcopy(progressFinalStart)
-    #     setAttributes(progressFinalEnd, {
-    #         'id': "rePresent-progress-final",
-    #         'x': "0"
-    #     })
-    #     progress.append(progressFinalStart)
-    #     progress.append(progressFinalEnd)
-
-    # time indicator
-    #     timer = deepcopy(progressBar)
-    #     setAttributes(timer, {
-    #         'id': "rePresent-progress-timer",
-    #         'style': {
-    #             'fill': "rgb(0, 0, 0)",
-    #             'display': 'none'
-    #         },
-    #         'width': str(0.01 * float(size[1])),
-    #         'height': str(float(progressBar.attrib['height']) * 1.5),
-    #         'y': str(float(progressBar.attrib['y']) -
-    #                  (float(progressBar.attrib['height']) * 0.5))
-    #     })
-    #     progress.append(timer)
-
-    #     return progress
 
     def prepareSvg(self):
         u"""Add some elements needed for structuring the presentation."""
@@ -221,16 +149,14 @@ class RePresentDocument(inkinkex.InkEffect):
         # all local masters will be stored in one layer for later referencing
         self.nodes['masters'] = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.nodes['masters'], {
-                      'id': "rePresent-slides-masters",
-                      'style': {'display': 'none'}
-                      })
+            'id': "rePresent-slides-masters"
+        })
         defs.append(self.nodes['masters'])
 
         # all slides will be stored in one layer
         self.nodes['slides'] = inkex.etree.Element(inkex.addNS('g'))
         setAttributes(self.nodes['slides'], {
-            'id': "rePresent-slides",
-            'style': {'display': 'none'}
+            'id': "rePresent-slides"
         })
         defs.append(self.nodes['slides'])
 
@@ -249,9 +175,6 @@ class RePresentDocument(inkinkex.InkEffect):
             'style': {'display': 'inline'}
         })
         root.append(self.nodes['slidesStack'])
-
-        # append the progress indicator
-        # root.append(self.createProgressIndicator())
 
         # finally add a viewbox for scaling
         setAttributes(root, {
@@ -295,33 +218,14 @@ class RePresentDocument(inkinkex.InkEffect):
                 })
                 node.insert(0, masterLayer)
 
-    def attachGlobalMaster(self):
-        u"""Attach the global master to all slides"""
-        # TODO: move master in seperate layer
-        # if self.nodes['masterGlobal'] is not None:
-        #     slides = self.document.xpath('//g[@id="rePresent-slides"]',
-        #                                  namespaces=inkex.NSS)
-        #     if len(slides):
-        #         for slide in slides[0].iterchildren(tag=NSS['svg'] + 'g'):
-        #             self.attachMasterSlide(self.nodes['masterGlobal'],
-        #                                    slide)
-
     def getElementCount(self, root):
         return len(root.xpath('*'))
 
     def addMasterSlide(self, node, globalMaster=False):
         u"""Add a master node to the local or global master slides def
         layer."""
-        setStyle(node, {'display': "inherit"})
+        setStyle(node, {'display': "inline"})
         if globalMaster:
-            # node is a global master for all slides
-            # if self.nodes['masterGlobal'] is None:
-            #     self.nodes['masterGlobal'] = inkex.etree.Element(
-            #         inkex.addNS('g'))
-            #     setAttributes(self.nodes['masterGlobal'], {
-            #         'id': "rePresent-master-global"
-            #     })
-            #     self.nodes['masters'].append(self.nodes['masterGlobal'])
             self.nodes['masterGlobal'].append(node)
         else:
             self.nodes['masters'].append(node)
@@ -330,9 +234,8 @@ class RePresentDocument(inkinkex.InkEffect):
         u"""Creates a link element for a slide in the slides def layer."""
         nodeLink = inkex.etree.Element(inkex.addNS('use'))
         setAttributes(nodeLink, {
-            'clip-path': "url(#rePresent-slide-clip)",
+            'class': 'slide',
             NSS['xlink'] + 'href': '#' + node.get('id'),
-            'style': {'display': 'none'}
         })
         return nodeLink
 
@@ -448,8 +351,6 @@ class RePresentDocument(inkinkex.InkEffect):
                     # parts are made of subnode + previous part content
                     parts = []
                     for partNode in partNodes:
-                        # self.attachMasterSlide([subNode] + parts, partNode)
-                        # self.attachMasterSlide([subNode], partNode)
                         # add parts to group
                         self.addGroupSlide(partNode, subGroup,
                                            nodeType=self.NODE_TYPES['part'])
@@ -457,7 +358,6 @@ class RePresentDocument(inkinkex.InkEffect):
                 else:
                     # add subnode as slide
                     self.addGroupSlide(subNode, group)
-        setStyle(node, {'display': 'none'})
 
     def parseSlides(self):
         u"""Find and prepare all slides in the document."""
@@ -475,14 +375,24 @@ class RePresentDocument(inkinkex.InkEffect):
                               self.NODE_TYPES['other']):
                 self.parseSlidesGroup(node, nodeType)
 
-        # finally link global master to slides (lowest order)
-        self.attachGlobalMaster()
-
     def addCss(self):
+        u"""Insert CSS files."""
         styleNode = inkex.etree.Element(inkex.addNS('style'))
         setAttributes(styleNode, {'type': 'text/css'})
-        path = os.path.join(os.path.dirname(os.path.abspath(__file__)))
-        styleNode.text = open(os.path.join(path, 'rePresent.css')).read()
+
+        # include all css files
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'css')
+        css = ""
+        # include base css first
+        css += open(os.path.join(path, "rePresent.css")).read()
+        # inlude all specific css
+        for files in os.listdir(path):
+            if files == "rePresent.css":
+                continue
+            elif files.endswith(".css"):
+                css += open(os.path.join(path, files)).read()
+
+        styleNode.text = css
         self.document.getroot().append(styleNode)
 
     def addScript(self):
@@ -652,6 +562,7 @@ class RePresentDocument(inkinkex.InkEffect):
         # self.text2path()
         # final
         self.cleanSvg()
+        self.addCss()
         self.addScript()
 
 rpDoc = RePresentDocument()

@@ -189,23 +189,9 @@ RePresent.Util.Slide = {
 
 RePresent.Util.Element = {
     _setVisibility: function(node, mode) {
-        if (typeof node == 'undefined' || node == null) {
-            return;
-        }
-        style = node.getAttribute('style')
-        if (style == null) {
-            style = "";
-        } else {
-            style = style.toLowerCase();
-            style = style.replace(/display:(inherit|inline|none);?/g, '');
-        }
-        if (mode == 'hide') {
-            style += 'display:none;';
-        } else {
-            style += 'display:inline;';
-        }
-
-        node.setAttribute('style', style);
+        node && RePresent.Util.Element.setStyles(node, {
+            display: (mode == 'hide') ? 'none' : 'inline'
+        });
     },
 
     hide: function(node) {
@@ -302,7 +288,7 @@ RePresent.Util.Element = {
     },
 
     setAttributes: function(element, attributes) {
-        console.log("setAttributes %o for %o", attributes,element);
+        // console.log("setAttributes %o for %o", attributes,element);
         for (var attr in attributes) {
             if (attr == 'style' && typeof attributes[attr] !== 'string') {
                 RePresent.Util.Element.setStyles(element, attributes[attr]);
@@ -319,19 +305,20 @@ RePresent.Util.Element = {
 
     setStyles: function(element, styles) {
         if (typeof element.style == 'undefined') {
-            console.debug("new style..");
-            var styleAttr = document.createAttribute('style');
-            styleAttr.value = '';
+            //console.debug("new style..");
+            // var styleAttr = document.createAttribute('style');
+            styleValue = '';
             for (var styleProp in styles) {
                 if (styles[styleProp] !== null) {
-                    styleAttr.value += styleProp + ':' +
+                    styleValue += styleProp + ':' +
                         styles[styleProp] + ';';
                 }
             }
-            element.setAttributeNode(styleAttr);
+            // element.setAttributeNode(styleAttr);
+            element.setAttributeNS(null, 'style', styleValue);
         } else {
             for (var styleProp in styles) {
-                console.debug("updating style %o -> %o", styleProp,styles[styleProp]);
+                //console.debug("updating style %o -> %o", styleProp,styles[styleProp]);
                 if (styles[styleProp] === null) {
                     // if property value is null: remove the attribute
                     element.style.removeProperty(styleProp);
