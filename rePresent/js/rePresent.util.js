@@ -302,27 +302,58 @@ RePresent.Util.Element = {
     },
 
     setAttributes: function(element, attributes) {
+        console.log("setAttributes %o for %o", attributes,element);
         for (var attr in attributes) {
             if (attr == 'style' && typeof attributes[attr] !== 'string') {
                 RePresent.Util.Element.setStyles(element, attributes[attr]);
             } else {
-                element.setAttribute(attr, attributes[attr]);
+                // if attribute value is null: remove the attribute
+                if (attributes[attr] === null) {
+                    element.removeAttribute(attr);
+                } else {
+                    element.setAttribute(attr, attributes[attr]);
+                }
             }
         }
     },
 
     setStyles: function(element, styles) {
         if (typeof element.style == 'undefined') {
+            console.debug("new style..");
             var styleAttr = document.createAttribute('style');
             styleAttr.value = '';
             for (var styleProp in styles) {
-                styleAttr.value += styleProp + ':' + styles[styleProp] + ';';
+                if (styles[styleProp] !== null) {
+                    styleAttr.value += styleProp + ':' +
+                        styles[styleProp] + ';';
+                }
             }
             element.setAttributeNode(styleAttr);
         } else {
             for (var styleProp in styles) {
-                element.style[styleProp] = styles[styleProp];
+                console.debug("updating style %o -> %o", styleProp,styles[styleProp]);
+                if (styles[styleProp] === null) {
+                    // if property value is null: remove the attribute
+                    element.style.removeProperty(styleProp);
+                } else {
+                    element.style[styleProp] = styles[styleProp];
+                }
             }
         }
+    },
+
+
+    // http://stackoverflow.com/questions/123999/how-to-tell-if-a-dom-element-is-visible-in-the-current-viewport
+    inViewPort: function(element) {
+        var dim = element.getBoundingClientRect();
+
+        return (
+            dim.top >= 0 &&
+            dim.left >= 0 &&
+            dim.bottom <= (
+                window.innerHeight || document.documentElement.clientHeight) &&
+            dim.right <= (
+                window.innerWidth || document. documentElement.clientWidth)
+        );
     }
 };

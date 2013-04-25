@@ -478,13 +478,15 @@ class RePresentDocument(inkinkex.InkEffect):
         # finally link global master to slides (lowest order)
         self.attachGlobalMaster()
 
+    def addCss(self):
+        styleNode = inkex.etree.Element(inkex.addNS('style'))
+        setAttributes(styleNode, {'type': 'text/css'})
+        path = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+        styleNode.text = open(os.path.join(path, 'rePresent.css')).read()
+        self.document.getroot().append(styleNode)
+
     def addScript(self):
         u"""Insert javascript files."""
-        # remove any old scripts
-        for node in self.document.xpath('//svg:script[@id="rePresent-script"]',
-                                        namespaces=inkex.NSS):
-            node.getparent().remove(node)
-        # add our current version
         scriptNode = inkex.etree.Element(inkex.addNS('script', 'svg'))
         setAttributes(scriptNode, {'type': 'text/ecmascript'})
 

@@ -10,7 +10,7 @@ window.onload = function() {
         index: {
             columns: 4,
             spacing: 5, // percentage of slide width
-            selectColor: 'red',
+            currentFrame: 'red',
             frame: '#ccc',
             selectSize: 5
         }
@@ -29,22 +29,42 @@ window.onload = function() {
     RePresent.Util.mergeConf(config, DEFAULTS);
     RePresent.Util.mergeConf(config, userConf);
 
-    rePresent.registerHook('changeSlide', rePresentStage.changeSlide);
-    rePresent.init(config);
     rePresentStage.init(config);
     rePresentProgress.init(config);
+    rePresent.registerHook('changeSlide', rePresentStage.changeSlide);
+    rePresent.init(config);
 
     // handle navigational keys
     document.onkeydown = function(e) {
         e = e || window.event;
         switch(e.keyCode) {
             case KEYS['right']:
+                if (rePresentStage.getMode() == 'index') {
+                    rePresentStage.navIndex({direction: 'right'});
+                } else {
+                    rePresent.nextSlide();
+                }
+                break;
             case KEYS['down']:
-                rePresent.nextSlide();
+                if (rePresentStage.getMode() == 'index') {
+                    rePresentStage.navIndex({direction: 'down'});
+                } else {
+                    rePresent.nextSlide();
+                }
                 break;
             case KEYS['left']:
+                if (rePresentStage.getMode() == 'index') {
+                    rePresentStage.navIndex({direction: 'left'});
+                } else {
+                    rePresent.nextSlide();
+                }
+                break;
             case KEYS['up']:
-                rePresent.prevSlide();
+                if (rePresentStage.getMode() == 'index') {
+                    rePresentStage.navIndex({direction: 'up'});
+                } else {
+                    rePresent.nextSlide();
+                }
                 break;
         }
     }
