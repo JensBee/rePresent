@@ -50,6 +50,7 @@ RePresent.Util.Slide = {
         }
     },
 
+    /** Shows all previous slides inside a group regardless of their type. */
     showPreviousParts: function(element) {
         var hasPrev = true;
         var node = element;
@@ -288,7 +289,7 @@ RePresent.Util.Element = {
     },
 
     setAttributes: function(element, attributes) {
-        // console.log("setAttributes %o for %o", attributes,element);
+         console.log("setAttributes %o for %o", attributes,element);
         for (var attr in attributes) {
             if (attr == 'style' && typeof attributes[attr] !== 'string') {
                 RePresent.Util.Element.setStyles(element, attributes[attr]);

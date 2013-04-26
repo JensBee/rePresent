@@ -18,6 +18,7 @@ window.onload = function() {
     // key codes
     var KEYS = {
         'return': 13,
+        'esc': 27,
         'left': 37,
         'up': 38,
         'right': 39,
@@ -37,6 +38,26 @@ window.onload = function() {
     document.onkeydown = function(e) {
         e = e || window.event;
         switch(e.keyCode) {
+            case KEYS['down']:
+                if (rePresentStage.getMode() == 'index') {
+                    rePresentStage.navIndex({direction: 'down'});
+                } else {
+                    rePresent.nextSlide();
+                }
+                break;
+            case KEYS['esc']:
+                if (rePresentStage.getMode() == 'index') {
+                    // leave index view
+                    rePresentStage.cancelIndex();
+                }
+                break;
+            case KEYS['left']:
+                if (rePresentStage.getMode() == 'index') {
+                    rePresentStage.navIndex({direction: 'left'});
+                } else {
+                    rePresent.prevSlide();
+                }
+                break;
             case KEYS['return']:
                 if (rePresentStage.getMode() == 'index') {
                     var slide = rePresentStage.selectIndexSlide();
@@ -48,20 +69,6 @@ window.onload = function() {
                     rePresentStage.navIndex({direction: 'right'});
                 } else {
                     rePresent.nextSlide();
-                }
-                break;
-            case KEYS['down']:
-                if (rePresentStage.getMode() == 'index') {
-                    rePresentStage.navIndex({direction: 'down'});
-                } else {
-                    rePresent.nextSlide();
-                }
-                break;
-            case KEYS['left']:
-                if (rePresentStage.getMode() == 'index') {
-                    rePresentStage.navIndex({direction: 'left'});
-                } else {
-                    rePresent.prevSlide();
                 }
                 break;
             case KEYS['up']:

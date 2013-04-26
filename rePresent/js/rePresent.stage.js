@@ -21,14 +21,19 @@ RePresent.Stage = function() {
         visible: new Array()
     };
     // slides index & state
-    var slides = {};
+    var slides = {
+        // all: all slide elements found
+        // current: current slide element
+    };
     // index state
     var index = {
         // columns: number of columns to display
+        // lastSlide: slide element displayed when entering index mode
         // page: current displayed index page
         // rect: SVG rect element as template for page frames
         // scale: scaling factor of pages to fit on a single page
         // slidePositions: array with [[slide][slide, part]] elements in order
+        // slidesPerPage: number of slides per page
         // space: spacing between pages
     };
 
@@ -95,8 +100,14 @@ RePresent.Stage = function() {
         // calc real space from percentage value
         index.scale = vBox.width / ((conf.index.columns * vBox.width) +
             ((conf.index.columns -1) * index.space));
-        // columns in index view
         index.columns = conf.index.columns;
+        index.slidesPerPage = index.columns * index.columns;
+        drawRaster({
+            width: (vBox.width * index.scale),
+            height: (vBox.height * index.scale),
+            space: (index.space * index.scale),
+            hide: true
+        });
     }
 
     this.navIndex = function(param) {
@@ -132,16 +143,26 @@ RePresent.Stage = function() {
             slides.current = RePresent.Util.Slide.getById(
                 index.slidePositions[newIdx][0]);
 
-            // if we step out of sight it's time to scroll
-            if (!RePresent.Util.Element.inViewPort(slides.current)) {
+            var pages = {}
+            if (index.page == 0) {
+                pages.min = 0;
+                pages.max = index.slidesPerPage -1;
+            } else {
+                pages.min = (index.page * index.slidesPerPage);
+                pages.max = pages.min + index.slidesPerPage -1;
+            }
+            console.log("nIdx: %o min:%o max:%o", newIdx, pages.min, pages.max);
+            if (newIdx < pages.min || newIdx > pages.max) {
                 showIndexPage({direction: dir});
             }
 
             // constraint indexes to column size
-            newIdx = newIdx % (index.columns * index.columns);
-            currentIdx = currentIdx % (index.columns * index.columns);
+            console.log("nexIdx-b: %o", newIdx);
+            newIdx = newIdx % index.slidesPerPage;
+            console.log("nexIdx-a: %o", newIdx);
+            currentIdx = currentIdx % index.slidesPerPage;
 
-            drawRaster({
+            updateRaster({
                 current: newIdx,
                 previous: currentIdx
             })
@@ -151,64 +172,114 @@ RePresent.Stage = function() {
     }
 
     function hideRaster() {
-        if (e.raster !== null) {
-            e.raster.innerHTML = '';
-        }
+        e.raster && RePresent.Util.Element.hide(e.raster);
     }
 
+    function showRaster() {
+        e.raster && RePresent.Util.Element.show(e.raster);
+    }
+
+    /*
+    * param = {
+    *   current: current selection index (optional)
+    *   height: height of a frame box
+    *   hide: hide raster,
+    *   space: space between boxes
+    *   width: width of a frame box
+    * }
+    */
     function drawRaster(param) {
-        var rasters = new Array();
-        if (param.previous == param.current) {
-            return;
-        }
         if (e.raster === null) {
             e.raster = document.createElementNS(RePresent.Util.NSS['svg'], 'g');
             e.raster.id = 'rePresent-slides-index-raster';
             e.root.appendChild(e.raster);
         }
 
-        if ((typeof param.width == 'undefined' ||
-                typeof param.height == 'undefined') &&
-                !isNaN(param.current)) {
-            console.log("RASTER - update");
-            param.previous = param.previous || 0;
-            RePresent.Util.Element.setAttributes(
-                e.raster.getElementsByTagName('rect')[param.current], {
-                    'class': 'selected'
+        param.hide && hideRaster();
+
+        e.raster.innerHTML = ''; // clear raster
+        var slideNum = 0;
+        for (var row=0; row<index.columns; row++) {
+            y = (param.height * row) + (param.space * row);
+            for (var col=0; col<index.columns; col++) {
+                aRect = index.rect.cloneNode();
+                x = (param.width * col) + (param.space * col);
+                RePresent.Util.Element.setAttributes(aRect, {
+                    x: x,
+                    y: y,
+                    width: param.width,
+                    height: param.height
                 });
-            RePresent.Util.Element.setAttributes(
-                e.raster.getElementsByTagName('rect')[param.previous], {
-                    'class': null
-                });
-        } else {
-            e.raster.innerHTML = ''; // clear raster
-            var slideNum = 0;
-            for (var row=0; row<index.columns; row++) {
-                y = (param.height * row) + (param.space * row);
-                for (var col=0; col<index.columns; col++) {
-                    aRect = index.rect.cloneNode();
-                    x = (param.width * col) + (param.space * col);
+                e.raster.appendChild(aRect);
+
+                if (param.current && slideNum == param.current) {
                     RePresent.Util.Element.setAttributes(aRect, {
-                        x: x,
-                        y: y,
-                        width: param.width,
-                        height: param.height
+                        'class': 'selected'
                     });
-                    e.raster.appendChild(aRect);
-
-                    if (slideNum == param.current) {
-                        RePresent.Util.Element.setAttributes(aRect, {
-                            'class': 'selected'
-                        });
-                    }
-
-                    slideNum++;
                 }
+
+                slideNum++;
             }
         }
     }
 
+    /*
+    * param = {
+    *   current: current selection index
+    *   hide: if true, don't show after updating
+    *   previous: previous selection index
+    * }
+    */
+    function updateRaster(param) {
+        var rasters = new Array();
+        console.log("dRaster %o", param);
+        param.current = param.current || 0;
+        if (param.previous == param.current) {
+            return;
+        }
+
+        var rects = e.raster.getElementsByTagName('rect');
+        console.log("@%o -> %o", param.current,rects[param.current]);
+        RePresent.Util.Element.setAttributes(rects[param.current], {
+            'class': 'selected'
+        });
+
+        if (!isNaN(param.previous)) {
+            RePresent.Util.Element.setAttributes(rects[param.previous], {
+                'class': null
+            });
+        }
+
+        // check if there are any remaining empty slide frames
+        var remain = index.slidePositions.length % index.slidesPerPage;
+        if (remain != 0) {
+            console.log(">>remaining boxes possible (%o) @%o!",
+                remain, param.current);
+            if (param.current > (index.slidePositions.length - remain)) {
+                console.log(">>removing remaining boxes..");
+                for (var i=remain; i<index.slidesPerPage; i++) {
+                    console.log(">>box %o", rects[i]);
+                    RePresent.Util.Element.hide(rects[i]);
+                }
+            } else {
+                console.log(">>no remaining boxes found!");
+            }
+        }
+
+        !param.hide && showRaster();
+    }
+
+    /**
+    * Callback function
+    * param = {
+    *   currentSlide: current displaying slide element
+    *   direction: -1 for going backwards, +1 for forward
+    *   jump:
+    *   nextSlide: next slide element
+    * }
+    */
     this.changeSlide = function(param) {
+        // console.log("Nextslide event!");
         var newParent = param.nextSlide.parentNode;
         if (newParent === nodes.lastParent &&
                 (RePresent.Util.Element.isPart(param.nextSlide) ||
@@ -270,7 +341,6 @@ RePresent.Stage = function() {
     * }
     */
     function showIndexPage(param) {
-        console.log("showIndexPage param:%o index:%o", param, index);
         param = param || {};
         if (param.direction) {
             page = (index.page || 0) + param.direction;
@@ -298,16 +368,27 @@ RePresent.Stage = function() {
         var offset = [0, 0];
         var currentIdx = 0;
         var currentSlideOffset = 0;
-        var slideOffset = page * (index.columns * index.columns);
-        console.log("slideOffset %o", slideOffset);
+        var slideOffset = page * index.slidesPerPage;
+        var hideSlide = false;
         for (var i=0; i<index.slidePositions.length; i++) {
-            if (currentSlideOffset >= slideOffset) {
-                x = offset[0] * vBox.width + offset[0] * index.space;
-                y = offset[1] * vBox.height + offset[1] * index.space;
-                for (var j=0; j<index.slidePositions[i].length; j++){
-                    var slide = RePresent.Util.Slide.getById(
-                        index.slidePositions[i][j]);
-                    console.log("rendering slide: %o", slide);
+            if (currentSlideOffset >= slideOffset &&
+                currentSlideOffset < (slideOffset + index.slidesPerPage)) {
+                hideSlide = false;
+            } else {
+                // set other slides to display none
+                hideSlide = true;
+            }
+
+            x = offset[0] * vBox.width + offset[0] * index.space;
+            y = offset[1] * vBox.height + offset[1] * index.space;
+
+            for (var j=0; j<index.slidePositions[i].length; j++){
+                var slide = RePresent.Util.Slide.getById(
+                    index.slidePositions[i][j]);
+
+                if (hideSlide) {
+                    RePresent.Util.Element.hide(slide);
+                } else {
                     slide.setAttribute('transform',
                         'scale(' + index.scale +
                             ') translate(' + x + ',' + y + ')');
@@ -317,9 +398,8 @@ RePresent.Stage = function() {
                         currentIdx = i;
                     }
                 }
-            } else {
-                // set other slides to display none!
             }
+
             currentSlideOffset++;
             offset[0]++; // columns
             if (((i + 1) % index.columns) === 0) {
@@ -328,40 +408,59 @@ RePresent.Stage = function() {
             }
         }
 
-        // draw raster (frames) for slides
-        drawRaster({
-            width: (vBox.width * index.scale),
-            height: (vBox.height * index.scale),
-            space: (index.space * index.scale),
-            current: currentIdx
-        });
-
         // set current index page
         index.page = page;
     }
 
-    /** Toggle display of the slides index view.*/
-    this.toggleIndex = function() {
-        if (mode === MODES.index) { // switch back to slide mode
-            hideRaster();
-            // show master
-            RePresent.Util.Element.show(RePresent.Util.e.master);
-            // reset layer scroll
-            RePresent.Util.Element.setStyles(e.slidesStack, {
+    /*
+    * @param noCommit: if true current slide will be slide selected when entring
+    *   index mode
+    */
+    function hideIndex(noCommit) {
+        noCommit = noCommit || false;
+
+        hideRaster();
+        // show master
+        RePresent.Util.Element.show(RePresent.Util.e.master);
+        // reset layer scroll
+        RePresent.Util.Element.setStyles(e.slidesStack, {
+            transform: null
+        });
+
+        if (noCommit) {
+            RePresent.Util.Element.setAttributes(slides.current, {
+                    'class': null
+            });
+            slides.current = index.lastSlide;
+        }
+        for (var count=0; count<slides.all.length; count++) {
+            RePresent.Util.Element.setAttributes(slides.all[count], {
                 transform: null
             });
-            for (var count=0; count<slides.all.length; count++) {
-                slides.all[count].removeAttribute('transform');
-                // hide all but the current slide
-                if (slides.all[count] !== slides.current) {
-                    RePresent.Util.Element.hide(slides.all[count]);
-                }
+            // hide all but the current slide
+            if (slides.all[count] !== slides.current) {
+                RePresent.Util.Element.hide(slides.all[count]);
             }
-            mode = MODES.slide;
+        }
+        // show previous parts, if neccessary
+        if (RePresent.Util.Element.isPart(slides.current)) {
+            RePresent.Util.Slide.showPreviousParts(slides.current);
+        }
+        mode = MODES.slide;
+    }
+
+    /** Toggle display of the slides index view. */
+    this.toggleIndex = function() {
+        if (mode === MODES.index) { // switch back to slide mode
+            hideIndex();
         } else { // show index mode
             // hide master
+            index.lastSlide = slides.current;
             RePresent.Util.Element.hide(RePresent.Util.e.master);
             showIndexPage();
+            updateRaster({
+                current: getSlideIndex(slides.current)
+            });
             mode = MODES.index;
         }
     }
@@ -372,6 +471,10 @@ RePresent.Stage = function() {
                 return aMode;
             }
         }
+    }
+
+    this.cancelIndex = function() {
+        hideIndex(true);
     }
 
     this.selectIndexSlide = function() {
