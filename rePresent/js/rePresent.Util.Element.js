@@ -105,6 +105,7 @@ RePresent.Util.Element = {
   },
 
   setAttributes: function(element, attributes) {
+    console.debug("Setting attributes for %o",element);
     for (var attr in attributes) {
       if (attr == 'style' && typeof attributes[attr] !== 'string') {
         RePresent.Util.Element.setStyles(element, attributes[attr]);
@@ -116,7 +117,12 @@ RePresent.Util.Element = {
         if (attributes[attr] === null) {
           element.removeAttribute(attr);
         } else {
-          element.setAttribute(attr, attributes[attr]);
+          var ns = attr.split(':', 1);
+          if (ns.length > 1) {
+            element.setAttributeNS(ns[0], ns[1], attributes[attr]);
+          } else {
+            element.setAttribute(attr, attributes[attr]);
+          }
         }
       }
     }
