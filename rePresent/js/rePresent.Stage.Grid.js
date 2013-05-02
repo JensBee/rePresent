@@ -4,7 +4,6 @@ RePresent.Stage.Grid = function () {
 
   var conf = {
     // d = { dynamic changing parameters/state
-    //      currentPage: current index page being displayed
     //      scale: Scaling factor for slides & grid
     // }
     // layer: layer holding the grid
@@ -83,7 +82,7 @@ RePresent.Stage.Grid = function () {
     } else {
       page = parseInt(param.page, 10) || 0;
     }
-    if (conf.d.currentPage == page) {
+    if (conf.page == page) {
       return;
     }
     conf.page = page;
@@ -230,15 +229,16 @@ RePresent.Stage.Grid = function () {
 
 
     var pages = {};
-    if (conf.d.currentPage === 0) {
+    if (conf.page === 0) {
       pages.min = 0;
       pages.max = index.get('slidesPerPage') -1;
     } else {
-      pages.min = (conf.d.currentPage * index.get('slidesPerPage'));
+      pages.min = (conf.page * index.get('slidesPerPage'));
       pages.max = pages.min + index.get('slidesPerPage') -1;
     }
     var currentSlide = RePresent.Util.Slide.getById(
           index.get('slidePositions')[param.current][0]);
+    console.log("update() param.current:%o < pages.min:%o || param.current:%o > pages.max:%o", param.current, pages.min, param.current, pages.max);
     if (param.current < pages.min || param.current > pages.max) {
       console.log(":::this.update(); -> show();");
       show({
