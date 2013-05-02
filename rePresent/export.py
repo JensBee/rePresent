@@ -407,15 +407,23 @@ class RePresentDocument(inkinkex.InkEffect):
         baseClass = open(os.path.join(path, "rePresent.js")).read()
         script += baseClass.replace('userConf = {};', 'userConf = %s;' %
                                     json.dumps(self.config))
+        # include base files first - in order
+        baseJsFiles = ['rePresent.Util.js', 'rePresent.Util.Element.js',
+                       'rePresent.Util.Slide.js']
+        for baseFile in baseJsFiles:
+            script += open(os.path.join(path, baseFile)).read()
+
         # inlude all sub-classes
         jsFiles = os.listdir(path)
-        # ensure right order
+        # ensure right (named) order
         jsFiles.sort(key=lambda x: x.rsplit('.', 1)[0])
         for files in jsFiles:
-            if (files == "rePresent.js" or files == "main.js"):
+            if (files in baseJsFiles or files == "rePresent.js" or
+                    files == "main.js"):
                 continue
             elif files.endswith(".js"):
                 script += open(os.path.join(path, files)).read()
+
         # include main initialization file
         script += open(os.path.join(path, "main.js")).read()
 

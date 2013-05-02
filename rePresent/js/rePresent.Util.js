@@ -16,24 +16,22 @@ RePresent.Util = {
   },
 
   getViewBoxDimension: function() {
-    viewBox = document.documentElement.getAttribute('viewBox');
-    width = parseInt(viewBox.split(' ')[2], 10);
-    height = parseInt(viewBox.split(' ')[3], 10);
+    var viewBox = document.documentElement.getAttribute('viewBox');
+    viewBox = viewBox.split(' ');
+    var width = parseInt(viewBox[2], 10);
+    var height = parseInt(viewBox[3], 10);
     return [width, height];
   },
 
   /** Merge the attributes of two objects. */
   mergeConf: function(conf, uConf) {
     for (var key in uConf) {
-      try {
         if (uConf[key].constructor==Object) {
-          conf[key] = mergeConf(conf[key], uConf[key]);
+          conf[key] = conf[key] || {};
+          conf[key] = RePresent.Util.mergeConf(conf[key], uConf[key]);
         } else {
           conf[key] = uConf[key];
         }
-      } catch(e) {
-          conf[key] = uConf[key];
-      }
     }
     return conf;
   }

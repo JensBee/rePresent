@@ -3,14 +3,10 @@ RePresent.Stage.Grid = function () {
   var isShown = false;
 
   var conf = {
-    // d = { dynamic changing parameters/state
-    //      scale: Scaling factor for slides & grid
-    // }
     // layer: layer holding the grid
     // rect: SVG rect element as template for page frames
     // root: parent of the grid layer
-    // sSpace: spacing between pages (absolute)
-
+    // space: spacing between pages (absolute)
     // page: current index page
   };
 
@@ -23,10 +19,10 @@ RePresent.Stage.Grid = function () {
 
   function showAllSlides() {
     var visible;
-    for (var i=0; i<index.get('slidePositions').length; i++) {
-      for (var j=0; j<index.get('slidePositions')[i].length; j++){
+    for (var i=0; i<stageApi.index.get('slidePositions').length; i++) {
+      for (var j=0; j<stageApi.index.get('slidePositions')[i].length; j++){
         var slide = RePresent.Util.Slide.getById(
-          index.get('slidePositions')[i][j]);
+          stageApi.index.get('slidePositions')[i][j]);
         RePresent.Util.Element.setAttributes(slide, {
           transform: {
             translate: null
@@ -88,21 +84,20 @@ RePresent.Stage.Grid = function () {
     conf.page = page;
 
     var scrollAmount;
-    var x, y = null;
     var offset = [0, 0];
     // var currentIdx = 0;
     var currentSlideOffset = 0;
     var slideOffset;
     var hideSlide = false;
 
-    slideOffset = page * index.get('slidesPerPage');
+    slideOffset = page * stageApi.index.get('slidesPerPage');
 
     if (page > 0) {
       // calulate height of all displayed items
-      scrollAmount = (index.get('columns') * conf.vBox.height) +
-        ((index.get('columns')) * conf.sSpace);
+      scrollAmount = (stageApi.index.get('columns') * conf.vBox.height) +
+        ((stageApi.index.get('columns')) * conf.space);
       // page n-times down, scale value
-      scrollAmount = scrollAmount * page * -1 * index.get('scale');
+      scrollAmount = scrollAmount * page * -1 * stageApi.index.get('scale');
     } else {
       scrollAmount = 0;
     }
@@ -110,7 +105,7 @@ RePresent.Stage.Grid = function () {
     RePresent.Util.Element.setAttributes(RePresent.Util.e.slidesStack, {
       transform: {
         translate: "0, " + scrollAmount,
-        scale: index.get('scale')
+        scale: stageApi.index.get('scale')
       }
     });
 
@@ -119,21 +114,21 @@ RePresent.Stage.Grid = function () {
 
     // show only visible slides (on current page) and mark
     // the currently active one
-    for (var i=0; i<index.get('slidePositions').length; i++) {
+    for (var i=0; i<stageApi.index.get('slidePositions').length; i++) {
       if (currentSlideOffset >= slideOffset &&
-        currentSlideOffset < (slideOffset + index.get('slidesPerPage'))) {
+        currentSlideOffset < (slideOffset + stageApi.index.get('slidesPerPage'))) {
         hideSlide = false;
       } else {
         // set other slides to display none
         hideSlide = true;
       }
 
-      x = offset[0] * conf.vBox.width + offset[0] * conf.sSpace;
-      y = offset[1] * conf.vBox.height + offset[1] * conf.sSpace;
+      var x = offset[0] * conf.vBox.width + offset[0] * conf.space;
+      var y = offset[1] * conf.vBox.height + offset[1] * conf.space;
 
-      for (var j=0; j<index.get('slidePositions')[i].length; j++){
+      for (var j=0; j<stageApi.index.get('slidePositions')[i].length; j++){
         var slide = RePresent.Util.Slide.getById(
-          index.get('slidePositions')[i][j]);
+          stageApi.index.get('slidePositions')[i][j]);
 
         if (hideSlide) {
           RePresent.Util.Element.hide(slide);
@@ -149,7 +144,7 @@ RePresent.Stage.Grid = function () {
 
       currentSlideOffset++;
       offset[0]++; // columns
-      if (((i + 1) % index.get('columns')) === 0) {
+      if (((i + 1) % stageApi.index.get('columns')) === 0) {
         offset[0] = 0;
         offset[1]++; // rows
       }
@@ -180,19 +175,23 @@ RePresent.Stage.Grid = function () {
     var slideNum = 0;
     RePresent.Util.Element.setAttributes(conf.layer, {
       transform: {
-        scale: index.get('scale')
+        scale: stageApi.index.get('scale')
       }
     });
-    for (var row=0; row<index.get('columns'); row++) {
-      y = (conf.vBox.height * row) + (conf.sSpace * row);
-      for (var col=0; col<index.get('columns'); col++) {
-        aRect = conf.rect.cloneNode();
-        x = (conf.vBox.width * col) + (conf.sSpace * col);
+
+    RePresent.Util.Element.setAttributes(conf.baseRect, {
+      width: conf.vBox.width,
+      height: conf.vBox.height
+    });
+
+    for (var row=0; row<stageApi.index.get('columns'); row++) {
+      var y = (conf.vBox.height * row) + (conf.space * row);
+      for (var col=0; col<stageApi.index.get('columns'); col++) {
+        var aRect = conf.rect.cloneNode();
+        var x = (conf.vBox.width * col) + (conf.space * col);
         RePresent.Util.Element.setAttributes(aRect, {
           x: x,
-          y: y,
-          width: conf.vBox.width,
-          height: conf.vBox.height
+          y: y
         });
         conf.layer.appendChild(aRect);
 
@@ -227,17 +226,16 @@ RePresent.Stage.Grid = function () {
       return;
     }
 
-
     var pages = {};
     if (conf.page === 0) {
       pages.min = 0;
-      pages.max = index.get('slidesPerPage') -1;
+      pages.max = stageApi.index.get('slidesPerPage') -1;
     } else {
-      pages.min = (conf.page * index.get('slidesPerPage'));
-      pages.max = pages.min + index.get('slidesPerPage') -1;
+      pages.min = (conf.page * stageApi.index.get('slidesPerPage'));
+      pages.max = pages.min + stageApi.index.get('slidesPerPage') -1;
     }
     var currentSlide = RePresent.Util.Slide.getById(
-          index.get('slidePositions')[param.current][0]);
+          stageApi.index.get('slidePositions')[param.current][0]);
     console.log("update() param.current:%o < pages.min:%o || param.current:%o > pages.max:%o", param.current, pages.min, param.current, pages.max);
     if (param.current < pages.min || param.current > pages.max) {
       console.log(":::this.update(); -> show();");
@@ -247,10 +245,10 @@ RePresent.Stage.Grid = function () {
       noShow = true; // prevent double update
     }
 
-    var rects = conf.layer.getElementsByTagName('rect');
+    var rects = conf.layer.getElementsByTagName('use');
 
     // constraint indexes to column size
-    param.previous = param.previous % index.get('slidesPerPage');
+    param.previous = param.previous % stageApi.index.get('slidesPerPage');
     if (!isNaN(param.previous)) {
       RePresent.Util.Element.setAttributes(rects[param.previous], {
         class: null
@@ -258,12 +256,12 @@ RePresent.Stage.Grid = function () {
     }
 
     // check if there are any remaining empty slide frames
-    var remain = index.get('slidePositions').length % index.get('slidesPerPage');
+    var remain = stageApi.index.get('slidePositions').length % stageApi.index.get('slidesPerPage');
     if (remain !== 0) {
       var i;
-      console.log("param.current:%o > index.get('slidePositions').length:%o - remain:%o -1", param.current, index.get('slidePositions').length, remain );
-      if (param.current > (index.get('slidePositions').length - (remain + 1))) {
-        for (i=index.get('slidesPerPage'); i>(remain - 1); i--) {
+      console.log("param.current:%o > stageApi.index.get('slidePositions').length:%o - remain:%o -1", param.current, stageApi.index.get('slidePositions').length, remain );
+      if (param.current > (stageApi.index.get('slidePositions').length - (remain + 1))) {
+        for (i=stageApi.index.get('slidesPerPage'); i>(remain - 1); i--) {
           // hide remaining frames
           RePresent.Util.Element.hide(rects[i]);
           hasHiddenRects = true;
@@ -277,7 +275,7 @@ RePresent.Stage.Grid = function () {
     }
 
     // calculate relative selection index
-    param.current = param.current % index.get('slidesPerPage');
+    param.current = param.current % stageApi.index.get('slidesPerPage');
     RePresent.Util.Element.setAttributes(rects[param.current], {
       class: 'selected'
     });
@@ -289,6 +287,20 @@ RePresent.Stage.Grid = function () {
 
     stageApi.setCurrentSlide(currentSlide);
   };
+
+  function createGridElement() {
+    var defs = document.getElementsByTagName('defs')[0];
+    var rect = document.createElementNS(RePresent.Util.NSS.svg, 'rect');
+    defs.appendChild(rect);
+    RePresent.Util.Element.setAttributes(rect, {
+      id: 'rePresent-slides-index-grid-rect'
+    });
+    conf.baseRect = rect;
+    conf.rect = document.createElementNS(RePresent.Util.NSS.svg, 'use');
+    RePresent.Util.Element.setAttributes(conf.rect, {
+      'xlink:href': '#rePresent-slides-index-grid-rect'
+    });
+  }
 
   /**
   * @param param = {
@@ -302,14 +314,13 @@ RePresent.Stage.Grid = function () {
   this.init = function(param) {
     // slide frame template for index grid
     stageApi = param.api;
-    conf.d = {};
     conf.vBox = param.vBox;
     conf.layer = document.createElementNS(
       RePresent.Util.NSS.svg, 'g');
-    conf.sSpace = ((parseInt(param.space, 10) || 5) / 100) *
+    conf.space = (stageApi.index.get('space') / 100) *
       conf.vBox.width;
-    conf.rect = document.createElementNS(
-      RePresent.Util.NSS.svg, 'rect');
+    // conf.rect =
+    createGridElement();
     conf.root = param.root || document.documentElement;
 
     RePresent.Util.Element.setAttributes(conf.rect, {

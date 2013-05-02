@@ -20,6 +20,7 @@ RePresent.Progress = function() {
       document.documentElement.appendChild(eMain);
       RePresent.Util.Element.hide(eMain);
       width = RePresent.Util.getViewBoxDimension()[0];
+      height = RePresent.Util.getViewBoxDimension()[1];
 
       // create progressbar
       var ePBar = document.createElement('rect');

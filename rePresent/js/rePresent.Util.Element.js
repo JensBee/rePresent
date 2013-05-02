@@ -61,7 +61,7 @@ RePresent.Util.Element = {
   */
   isPartParent: function(element) {
     return element.getAttributeNS(
-      RePresent.Util.NSS.rePresent, 'type') == 'partParent';
+      RePresent.Util.NSS.represent, 'type') == 'partParent';
   },
 
   _getNode: function(element, stopId, direction) {
@@ -105,7 +105,7 @@ RePresent.Util.Element = {
   },
 
   setAttributes: function(element, attributes) {
-    console.debug("Setting attributes for %o",element);
+    // console.debug("Setting attributes %o for %o", attributes, element);
     for (var attr in attributes) {
       if (attr == 'style' && typeof attributes[attr] !== 'string') {
         RePresent.Util.Element.setStyles(element, attributes[attr]);
@@ -117,10 +117,14 @@ RePresent.Util.Element = {
         if (attributes[attr] === null) {
           element.removeAttribute(attr);
         } else {
-          var ns = attr.split(':', 1);
+          var ns = attr.split(':', 2);
+          // console.debug("setAttributes: %o from %o", ns, attr);
           if (ns.length > 1) {
-            element.setAttributeNS(ns[0], ns[1], attributes[attr]);
+            // console.debug("setAttributeNS:%o:%o with %o", ns[0], ns[1], attributes[attr]);
+            element.setAttributeNS(RePresent.Util.NSS[ns[0].toLowerCase()],
+              ns[1], attributes[attr]);
           } else {
+            // console.debug("setAttribute:%o with %o", attr, attributes[attr]);
             element.setAttribute(attr, attributes[attr]);
           }
         }
@@ -136,7 +140,7 @@ RePresent.Util.Element = {
   setStyles: function(element, styles) {
     var styleProp;
     if (typeof element.style == 'undefined') {
-      styleValue = '';
+      var styleValue = '';
       for (styleProp in styles) {
         if (styles[styleProp] !== null) {
           styleValue += styleProp + ':' +

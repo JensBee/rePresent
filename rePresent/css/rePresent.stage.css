@@ -1,9 +1,12 @@
-#rePresent-slides-index-grid rect {
+/********************
+ * Grid styles
+ ********************/
+#rePresent-slides-index-grid-rect {
     stroke:#ccc;
     stroke-width:2px;
     fill:none;
 }
 
-#rePresent-slides-index-grid rect.selected {
-    stroke:red;
+#rePresent-slides-index-grid .selected {
+    stroke:red !important;
 }

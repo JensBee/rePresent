@@ -49,17 +49,18 @@ RePresent.Stage = function () {
       return null;
     },
 
+    /** Acessor object for the private index state. */
+    index: {
+        get: function(property) {
+          if (property in _index && !property.startsWith('_')) {
+            return _index[property];
+          }
+          return null;
+        }
+    },
+
     setCurrentSlide: function(slide) {
       slides.current = slide;
-    }
-  };
-
-  /** Acessor object for the private index state. */
-  var index = {
-    get: function(property) {
-      if (property in _index && !property.startsWith('_')) {
-        return _index[property];
-      }
     }
   };
 
@@ -83,7 +84,6 @@ RePresent.Stage = function () {
     _index._grid = new RePresent.Stage.Grid();
     _index._grid.init({
       api: api,
-      indexObj: index,
       root: e.root,
       vBox: vBox
     });
@@ -227,6 +227,7 @@ RePresent.Stage = function () {
 
   /** Toggle display of the slides index view. */
   this.toggleIndex = function() {
+    console.log("***TOGGLEINDEX***");
     if (mode === MODES.index) { // switch back to slide mode
       hideIndex();
     } else { // show index mode
@@ -247,6 +248,7 @@ RePresent.Stage = function () {
         return aMode;
       }
     }
+    return null; // should not happen
   };
 
   this.cancelIndex = function() {

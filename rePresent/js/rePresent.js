@@ -10,7 +10,7 @@ var RePresent = function() {
     ];
     // important elements
     var e = {
-        'slidesStack': document.getElementById('rePresent-slides-stack'),
+        'slidesStack': document.getElementById('rePresent-slides-stack')
     };
 
     function showSlide(param) {
@@ -42,7 +42,7 @@ var RePresent = function() {
 
         // console.log("showSlide ==> %o", nextSlide);
 
-        if (nextSlide != null) {
+        if (nextSlide !== null) {
             // trigger slide switching hooks
             triggerHook('changeSlide', {
                 'currentSlide': activeSlide,
@@ -65,7 +65,7 @@ var RePresent = function() {
     /** Get the slide to display from the URL. */
     function getSlideFromUrl() {
         var hash = window.location.hash;
-        if (typeof hash !== undefined && hash != '') {
+        if (typeof hash !== undefined && hash !== '') {
             return RePresent.Util.Slide.getById(hash);
         }
         return null;
@@ -85,16 +85,16 @@ var RePresent = function() {
     /** Step one slide forward. */
     this.nextSlide = function() {
         showSlide({direction: +1});
-    }
+    };
 
     /** Step back slide forward. */
     this.prevSlide = function() {
         showSlide({direction: -1});
-    }
+    };
 
     this.showSlide = function(slide) {
         showSlide({slide: slide});
-    }
+    };
 
     /** Allows to register foreign functions for hooks triggerd by RePresent.
     @param Hook to register for
@@ -104,20 +104,18 @@ var RePresent = function() {
             console.warn("Tried to register unknown hook '"+hook+"'.");
         } else {
             if (hooks[hook] === undefined) {
-                hooks[hook] = new Array();
+                hooks[hook] = [];
             }
             hooks[hook].push(callback);
         }
-    }
+    };
 
     this.init = function(config) {
-        viewBox = RePresent.Util.getViewBoxDimension();
-
         var slide = getSlideFromUrl();
-        if (slide != null) {
-            showSlide({slide: slide})
+        if (slide !== null) {
+            showSlide({slide: slide});
         } else {
             showSlide();
         }
-    }
+    };
 };
