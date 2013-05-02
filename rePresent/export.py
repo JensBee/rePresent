@@ -408,7 +408,10 @@ class RePresentDocument(inkinkex.InkEffect):
         script += baseClass.replace('userConf = {};', 'userConf = %s;' %
                                     json.dumps(self.config))
         # inlude all sub-classes
-        for files in os.listdir(path):
+        jsFiles = os.listdir(path)
+        # ensure right order
+        jsFiles.sort(key=lambda x: x.rsplit('.', 1)[0])
+        for files in jsFiles:
             if (files == "rePresent.js" or files == "main.js"):
                 continue
             elif files.endswith(".js"):
