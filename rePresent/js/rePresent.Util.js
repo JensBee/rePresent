@@ -34,5 +34,17 @@ RePresent.Util = {
         }
     }
     return conf;
+  },
+
+  parseInt: function(string, defaultNumber, radix) {
+    var number = defaultNumber;
+    if (string) {
+      radix = radix || 10;
+      number = parseInt(string, radix);
+      if (isNaN(result)) {
+        number = defaultNumber;
+      }
+    }
+    return number;
   }
 };

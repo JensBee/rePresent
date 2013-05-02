@@ -35,46 +35,55 @@ window.onload = function() {
   rePresent.registerHook('changeSlide', rePresentStage.changeSlide);
   rePresent.init(config);
 
+  function toggleIndexView() {
+    // toggle & check if we toggled from index mode
+    if (rePresentStage.toggleIndex() === RePresent.Stage.MODES.slide) {
+      rePresent.showSlide(rePresentStage.getSelectedSlide());
+    }
+  }
+
+  function isIndexView() {
+    return rePresentStage.getMode() === RePresent.Stage.MODES.index;
+  }
+
   // handle navigational keys
   document.onkeydown = function(e) {
-    alert("keydown");
     e = e || window.event;
     switch(e.keyCode) {
       case KEYS['down']:
-        if (rePresentStage.getMode() == 'index') {
+        if (isIndexView()) {
           rePresentStage.navIndex({direction: 'down'});
         } else {
           rePresent.nextSlide();
         }
         break;
       case KEYS['esc']:
-        if (rePresentStage.getMode() == 'index') {
-          // leave index view
-          rePresentStage.cancelIndex();
+        if (isIndexView()) {
+          toggleIndexView();
         }
         break;
       case KEYS['left']:
-        if (rePresentStage.getMode() == 'index') {
+        if (isIndexView()) {
           rePresentStage.navIndex({direction: 'left'});
         } else {
           rePresent.prevSlide();
         }
         break;
       case KEYS['return']:
-        if (rePresentStage.getMode() == 'index') {
-          var slide = rePresentStage.selectIndexSlide();
+        if (isIndexView()) {
+          var slide = rePresentStage.commitIndex();
           rePresent.showSlide(slide);
         }
         break;
       case KEYS['right']:
-        if (rePresentStage.getMode() == 'index') {
+        if (isIndexView()) {
           rePresentStage.navIndex({direction: 'right'});
         } else {
           rePresent.nextSlide();
         }
         break;
       case KEYS['up']:
-        if (rePresentStage.getMode() == 'index') {
+        if (isIndexView()) {
           rePresentStage.navIndex({direction: 'up'});
         } else {
           rePresent.prevSlide();
@@ -85,7 +94,6 @@ window.onload = function() {
 
   // handle functional keys
   document.onkeypress = function(e) {
-    alert("keypress");
     e = e || window.event;
     var charCode = e.which || e.keyCode;
     switch(String.fromCharCode(charCode)) {
@@ -93,7 +101,7 @@ window.onload = function() {
         // rePresentProgress.queryDuration();
         break;
       case 'i':
-        rePresentStage.toggleIndex();
+        toggleIndexView();
         break;
       case 'p':
         // rePresentProgress.toggleVisibility();

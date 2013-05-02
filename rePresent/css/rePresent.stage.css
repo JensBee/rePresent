@@ -2,11 +2,14 @@
  * Grid styles
  ********************/
 #rePresent-slides-index-grid-rect {
-    stroke:#ccc;
-    stroke-width:2px;
-    fill:none;
+  fill:none;
+}
+
+#rePresent-slides-index-grid use {
+	stroke-width:2px;
+	stroke:#ccc;
 }
 
 #rePresent-slides-index-grid .selected {
-    stroke:red !important;
+  stroke:red;
 }

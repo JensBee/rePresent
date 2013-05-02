@@ -4,16 +4,18 @@ RePresent.Stage.Util = {
    */
   collectSlides: function () {
     var slidePositions = [];
+
     var slides = RePresent.Util.e.slidesStack.getElementsByTagName('use');
     var fullSlide = 0;
-    var lastParent = null, newParent = null;
-
+    var lastParent = null;
     for (var count=0; count<slides.length; count++) {
       var holdPosition = false;
-      if (RePresent.Util.Element.isPart(slides[count]) ||
-          RePresent.Util.Element.isPartParent(slides[count])) {
-        newParent = slides[count].parentNode;
-        if (lastParent === null || newParent === lastParent) {
+      var currentSlide = slides[count];
+
+      if (RePresent.Util.Element.isPart(currentSlide) ||
+          RePresent.Util.Element.isPartParent(currentSlide)) {
+        var newParent = currentSlide.parentNode;
+        if (newParent === lastParent) {
           holdPosition = true;
         } else {
           lastParent = newParent;
@@ -27,7 +29,7 @@ RePresent.Stage.Util = {
       }
 
       var slidesPos = slidePositions[fullSlide];
-      var slideId = RePresent.Util.Slide.getId(slides[count]);
+      var slideId = RePresent.Util.Slide.getId(currentSlide);
       if (typeof slidesPos == 'undefined') {
         slidePositions[fullSlide] = [slideId];
       } else {

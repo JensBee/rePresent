@@ -93,7 +93,9 @@ var RePresent = function() {
     };
 
     this.showSlide = function(slide) {
-        showSlide({slide: slide});
+        if (slide) {
+            showSlide({slide: slide});
+        }
     };
 
     /** Allows to register foreign functions for hooks triggerd by RePresent.

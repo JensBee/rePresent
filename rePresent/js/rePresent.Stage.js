@@ -3,14 +3,14 @@ RePresent.Stage = function () {
   // SVG viewbox
   var vBox = {};
   var conf;
-  var MODES = {
-    slide: 0, // presentation mode
-    index: 1 // slides index view
-  };
+  // var MODES = {
+  //   slide: 0, // presentation mode
+  //   index: 1 // slides index view
+  // };
   // important nodes
   var e = {};
   // current display mode
-  var mode = MODES.slide;
+  var mode;// = MODES.slide;
   // stores parent -> child association to properly show stacked parts
   var nodes = {
     lastParent: null, // parent of current shown slide
@@ -35,7 +35,7 @@ RePresent.Stage = function () {
   };
 
   /** Simple functions to interact with sub-modules. */
-  var api = {
+  this.api = {
     getSlideIndex: function(slide) {
       for (var i=0; i<_index.slidePositions.length; i++) {
         for (var j=0; j<_index.slidePositions[i].length; j++){
@@ -59,6 +59,14 @@ RePresent.Stage = function () {
         }
     },
 
+    getAllSlides: function() {
+      return RePresent.Util.e.slidesStack.getElementsByTagName('use');
+    },
+
+    getCurrentSlide: function() {
+      return slides.current;
+    },
+
     setCurrentSlide: function(slide) {
       slides.current = slide;
     }
@@ -69,10 +77,10 @@ RePresent.Stage = function () {
     var viewBox = RePresent.Util.getViewBoxDimension();
     vBox.width = viewBox[0];
     vBox.height = viewBox[1];
-    mode = MODES.slide;
+    mode = RePresent.Stage.MODES.slide;
 
     // gather all slides
-    slides.all = RePresent.Util.e.slidesStack.getElementsByTagName('use');
+    slides.all = this.api.getAllSlides();
 
     _index.slidePositions = RePresent.Stage.Util.collectSlides();
 
@@ -83,7 +91,7 @@ RePresent.Stage = function () {
     setState();
     _index._grid = new RePresent.Stage.Grid();
     _index._grid.init({
-      api: api,
+      api: this.api,
       root: e.root,
       vBox: vBox
     });
@@ -101,7 +109,7 @@ RePresent.Stage = function () {
   }
 
   this.navIndex = function(param) {
-    var currentIdx = parseInt(api.getSlideIndex(slides.current), 10);
+    var currentIdx = parseInt(this.api.getSlideIndex(slides.current), 10);
     var newIdx = null;
     var dir = 0; // direction +1: forward, -1 backwards
 
@@ -188,76 +196,59 @@ RePresent.Stage = function () {
     slides.current = param.nextSlide;
   };
 
-  /*
-  * @param noCommit: if true current slide will be slide selected when entring
-  *   index mode
-  */
-  function hideIndex(noCommit) {
-    noCommit = noCommit || false;
+  this.getSelectedSlide = function() {
+    return slides.current;
+  };
 
+  /* Hides the index view.
+  * @param noCommit If true slide selection will be ignored (optional)
+  */
+  this.hideIndex = function(noCommit) {
+    noCommit = noCommit || false;
     _index._grid.hide();
-    // show master
-    RePresent.Util.Element.show(RePresent.Util.e.master);
-    // reset layer scroll
-    RePresent.Util.Element.setStyles(RePresent.Util.e.slidesStack, {
-      transform: null
-    });
 
     if (noCommit) {
-      RePresent.Util.Element.setAttributes(slides.current, {
-        'class': null
-      });
+      RePresent.Util.Element.hide(slides.current);
       slides.current = _index.lastSlide;
     }
-    for (var count=0; count<slides.all.length; count++) {
-      RePresent.Util.Element.setAttributes(slides.all[count], {
-        transform: null
-      });
-        // hide all but the current slide
-        if (slides.all[count] !== slides.current) {
-          RePresent.Util.Element.hide(slides.all[count]);
-        }
-      }
-    // show previous parts, if neccessary
-    if (RePresent.Util.Element.isPart(slides.current)) {
-      RePresent.Util.Slide.showPreviousParts(slides.current);
-    }
-    mode = MODES.slide;
-  }
 
-  /** Toggle display of the slides index view. */
+    mode = RePresent.Stage.MODES.slide;
+  };
+
+  this.showIndex = function() {
+    _index.lastSlide = slides.current;
+    RePresent.Util.Element.hide(RePresent.Util.e.master);
+    _index._grid.update({
+      current: this.api.getSlideIndex(slides.current)
+    });
+    // _index._grid.show();
+    mode = RePresent.Stage.MODES.index;
+  };
+
+  /** Toggles the index view without changing a slide.
+   * @return The new view mode
+   */
   this.toggleIndex = function() {
-    console.log("***TOGGLEINDEX***");
-    if (mode === MODES.index) { // switch back to slide mode
-      hideIndex();
-    } else { // show index mode
-      // hide master
-      index.lastSlide = slides.current;
-      RePresent.Util.Element.hide(RePresent.Util.e.master);
-      _index._grid.update({
-        current: api.getSlideIndex(slides.current)
-      });
-      // _index._grid.show();
-      mode = MODES.index;
+    if (mode === RePresent.Stage.MODES.index) {
+      this.hideIndex(true);
+    } else {
+      this.showIndex();
     }
+    return mode;
   };
 
   this.getMode = function() {
-    for (var aMode in MODES) {
-      if (MODES[aMode] === mode) {
-        return aMode;
-      }
-    }
-    return null; // should not happen
+    return mode;
   };
 
-  this.cancelIndex = function() {
-    hideIndex(true);
-  };
-
-  this.selectIndexSlide = function() {
-    mode = MODES.index;
-    this.toggleIndex();
+  this.commitIndex = function() {
+    mode = RePresent.Stage.MODES.index;
+    this.hideIndex();
     return slides.current;
   };
 };
+
+RePresent.Stage.MODES = {
+  slide: 0, // presentation mode
+  index: 1 // slides index view
+}
