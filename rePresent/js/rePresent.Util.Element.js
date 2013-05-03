@@ -40,30 +40,6 @@ RePresent.Util.Element = {
     return found;
   },
 
-  /** Check if slide-element is a group node.
-  * @param element node to check
-  */
-  isGroup: function(element) {
-    return element.getAttributeNS(
-      RePresent.Util.NSS.represent, 'type') == 'group';
-  },
-
-  /** Check if slide-element is a part node.
-  * @param element node to check
-  */
-  isPart: function(element) {
-    return element.getAttributeNS(
-      RePresent.Util.NSS.represent, 'type') == 'part';
-  },
-
-  /** Check if slide-element is the parent of part nodes.
-  * @param element node to check
-  */
-  isPartParent: function(element) {
-    return element.getAttributeNS(
-      RePresent.Util.NSS.represent, 'type') == 'partParent';
-  },
-
   _getNode: function(element, stopId, direction) {
     if (element.id == stopId) {
       return null;

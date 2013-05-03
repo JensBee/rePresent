@@ -72,8 +72,9 @@ var RePresent = function() {
     }
 
     /** Trigger a hook.
-    @param The hook to trigger
-    @param parameters to pass on to the registered functions */
+     * @param The hook to trigger
+     * @param parameters to pass on to the registered functions
+     */
     function triggerHook(hook, args) {
         if (hooks.indexOf(hook) != -1 && hooks[hook] !== undefined) {
             for (var i=0; i<hooks[hook].length; i++) {
@@ -99,8 +100,9 @@ var RePresent = function() {
     };
 
     /** Allows to register foreign functions for hooks triggerd by RePresent.
-    @param Hook to register for
-    @param Callback function to call */
+     * @param Hook to register for
+     * @param Callback function to call
+     */
     this.registerHook = function(hook, callback) {
         if (hooks.indexOf(hook) == -1) {
             console.warn("Tried to register unknown hook '"+hook+"'.");

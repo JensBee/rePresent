@@ -20,7 +20,10 @@ RePresent.Util = {
     viewBox = viewBox.split(' ');
     var width = parseInt(viewBox[2], 10);
     var height = parseInt(viewBox[3], 10);
-    return [width, height];
+    return {
+      width: width,
+      height: height
+    };
   },
 
   /** Merge the attributes of two objects. */

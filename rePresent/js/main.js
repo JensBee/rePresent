@@ -1,6 +1,7 @@
 window.onload = function() {
   var rePresent = new RePresent();
   var rePresentStage = new RePresent.Stage();
+  var rePresentGrid = new RePresent.Grid();
   // progress is currently not working
   // var rePresentProgress = new RePresent.Progress();
   // The following line will be replaced by export script to include user
@@ -31,60 +32,51 @@ window.onload = function() {
   RePresent.Util.mergeConf(config, userConf);
 
   rePresentStage.init(config);
+  rePresentGrid.init(config);
   // rePresentProgress.init(config);
-  rePresent.registerHook('changeSlide', rePresentStage.changeSlide);
+  rePresent.registerHook('changeSlide', rePresentStage.changeSlideEvent);
+  rePresent.registerHook('slide', rePresentGrid.slideEvent);
   rePresent.init(config);
-
-  function toggleIndexView() {
-    // toggle & check if we toggled from index mode
-    if (rePresentStage.toggleIndex() === RePresent.Stage.MODES.slide) {
-      rePresent.showSlide(rePresentStage.getSelectedSlide());
-    }
-  }
-
-  function isIndexView() {
-    return rePresentStage.getMode() === RePresent.Stage.MODES.index;
-  }
 
   // handle navigational keys
   document.onkeydown = function(e) {
     e = e || window.event;
     switch(e.keyCode) {
       case KEYS['down']:
-        if (isIndexView()) {
-          rePresentStage.navIndex({direction: 'down'});
+        if (rePresentGrid.isVisible()) {
+          rePresentGrid.navigate({direction: 'down'});
         } else {
           rePresent.nextSlide();
         }
         break;
       case KEYS['esc']:
-        if (isIndexView()) {
-          toggleIndexView();
+        if (rePresentGrid.isVisible()) {
+          rePresentGrid.hide();
+          // toggleIndexView();
         }
         break;
       case KEYS['left']:
-        if (isIndexView()) {
-          rePresentStage.navIndex({direction: 'left'});
+        if (rePresentGrid.isVisible()) {
+          rePresentGrid.navigate({direction: 'left'});
         } else {
           rePresent.prevSlide();
         }
         break;
       case KEYS['return']:
-        if (isIndexView()) {
-          var slide = rePresentStage.commitIndex();
-          rePresent.showSlide(slide);
+        if (rePresentGrid.isVisible()) {
+          rePresent.showSlide(rePresentGrid.commit());
         }
         break;
       case KEYS['right']:
-        if (isIndexView()) {
-          rePresentStage.navIndex({direction: 'right'});
+        if (rePresentGrid.isVisible()) {
+          rePresentGrid.navigate({direction: 'right'});
         } else {
           rePresent.nextSlide();
         }
         break;
       case KEYS['up']:
-        if (isIndexView()) {
-          rePresentStage.navIndex({direction: 'up'});
+        if (rePresentGrid.isVisible()) {
+          rePresentGrid.navigate({direction: 'up'});
         } else {
           rePresent.prevSlide();
         }
@@ -101,7 +93,7 @@ window.onload = function() {
         // rePresentProgress.queryDuration();
         break;
       case 'i':
-        toggleIndexView();
+        rePresentGrid.toggle();
         break;
       case 'p':
         // rePresentProgress.toggleVisibility();
