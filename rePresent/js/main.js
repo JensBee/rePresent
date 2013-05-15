@@ -51,8 +51,7 @@ window.onload = function() {
         break;
       case KEYS['esc']:
         if (rePresentGrid.isVisible()) {
-          rePresentGrid.hide();
-          // toggleIndexView();
+          rePresentGrid.cancel();
         }
         break;
       case KEYS['left']:

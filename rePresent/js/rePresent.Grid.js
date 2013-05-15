@@ -44,9 +44,12 @@ RePresent.Grid = function () {
   }
 
   /** Hides the index view.
-   * @param commit If true the current selected slide will be set active.
+   * @param noCommit If true slide selection will be ignored (optional)
    */
-  function hide(commit) {
+  function hide(noCommit) {
+    noCommit = noCommit || false;
+    hide();
+
     if (conf.layer) {
       RePresent.Util.Element.hide(conf.layer);
     }
@@ -82,11 +85,22 @@ RePresent.Grid = function () {
     }
     // show previous parts, if necessary
     if (slides.current && RePresent.Util.Slide.isPart(slides.current)) {
-      RePresent.Util.Slide.showPreviousParts(currentSlide);
+      RePresent.Util.Slide.showPreviousParts(slides.current);
     }
-  }
 
-  this.hide = function() { hide(); };
+    // switch back to the slide active when entering index mode
+    if (noCommit) {
+      RePresent.Util.Element.hide(slides.current);
+      if (RePresent.Util.Slide.isPartType(slides.previous)) {
+        RePresent.Util.Slide.showPreviousParts(slides.previous);
+      } else {
+        RePresent.Util.Element.show(slides.previous);
+      }
+      slides.current = slides.previous;
+    }
+
+    visible = false;
+  }
 
   /**
   * Shows a specific page in index mode.
@@ -181,34 +195,11 @@ RePresent.Grid = function () {
     slides.current = slide;
   };
 
-  /** See show(); */
-  this.show = function (param) {
-    // check direction parameter
-    if (param.direction && isNaN(param.direction)) {
-      param.direction = parseInt(param.direction, 10);
-      if (isNaN(param.direction)) {
-        param.direction = 1;
-        console.warn("Parameter 'direction' is NaN. Defaulting to +1.");
-      }
-    }
-
-    // check page parameter
-    if (param.page && isNaN(param.page)) {
-      param.page = parseInt(param.page, 10);
-      if (isNaN(param.page)) {
-        param.page = 0;
-        console.warn("Parameter 'page' is NaN. Defaulting to 0.");
-      }
-    }
-
-    show(param);
-  };
-
-  /*
-  * param = { optional
-  *   hide: hide grid,
-  * }
-  */
+  /* Draws the grid elements.
+   * param = { optional
+   *  hide: hide grid,
+   * }
+   */
   function drawGrid(param) {
     param = param || {};
     if (param.hide) {
@@ -248,7 +239,7 @@ RePresent.Grid = function () {
   *   previous: previous selection index
   * }
   */
-  this.update = function(param) {
+  function update(param) {
     param.current = param.current || 0;
     var noShow = param.hide || false;
     if (param.previous && param.previous == param.current) {
@@ -362,7 +353,7 @@ RePresent.Grid = function () {
 
     if (newIdx !== null && newIdx >= 0 &&
           newIdx < slides.full.length) {
-      this.update({
+      update({
         current: newIdx,
         direction: dir,
         previous: currentIdx
@@ -370,31 +361,13 @@ RePresent.Grid = function () {
     }
   };
 
-  /* Hides the index view.
-   * @param noCommit If true slide selection will be ignored (optional)
-   */
-  this.hideIndex = function(noCommit) {
-    noCommit = noCommit || false;
-    hide();
+  /** Hide the index grid and cancel any selection. */
+  this.cancel = function() { this.hide(true); };
 
-    // switch back to the slide active when entering index mode
-    if (noCommit) {
-      RePresent.Util.Element.hide(slides.current);
-      if (RePresent.Util.Slide.isPartType(slides.previous)) {
-        RePresent.Util.Slide.showPreviousParts(slides.previous);
-      } else {
-        RePresent.Util.Element.show(slides.previous);
-      }
-      slides.current = slides.previous;
-    }
-
-    visible = false;
-  };
-
-  this.showIndex = function() {
+  this.show = function() {
     slides.previous = slides.current;
     RePresent.Util.Element.hide(RePresent.Util.e.master);
-    this.update({
+    update({
       current: RePresent.Util.Slide.findInGrouped(slides.full, slides.current)
     });
     visible = true;
@@ -405,9 +378,9 @@ RePresent.Grid = function () {
    */
   this.toggle = function() {
     if (visible === true) {
-      this.hideIndex(true);
+      this.cancel();
     } else {
-      this.showIndex();
+      this.show();
     }
     return visible;
   };
@@ -425,7 +398,7 @@ RePresent.Grid = function () {
   this.commit = function() {
     var slide = null;
     if (this.isVisible()) {
-      this.hideIndex();
+      this.hide();
       slide = slides.current;
     }
     return slide;
