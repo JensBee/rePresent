@@ -2,6 +2,7 @@ window.onload = function() {
   var rePresent = new RePresent();
   var rePresentStage = new RePresent.Stage();
   var rePresentGrid = new RePresent.Grid();
+  var rePresentNumbering = new RePresent.Numbering();
   // progress is currently not working
   // var rePresentProgress = new RePresent.Progress();
   // The following line will be replaced by export script to include user
@@ -33,6 +34,7 @@ window.onload = function() {
 
   rePresentStage.init(config);
   rePresentGrid.init(config);
+  rePresentNumbering.init(config);
   // rePresentProgress.init(config);
   rePresent.registerHook('changeSlide', rePresentStage.changeSlideEvent);
   rePresent.registerHook('slide', rePresentGrid.slideEvent);
